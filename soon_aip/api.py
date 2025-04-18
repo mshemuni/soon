@@ -56,15 +56,6 @@ def returnify(message, data):
         "data": data
     }
 
-@router.post('/health-check', response={200: ReturnSchema, 500: ReturnSchema}, tags=["GPO"], description="Health Check")
-def health(request):
-    try:
-        _ = settings.gpo.dn
-        staff = request.auth.is_staff
-        return 200, returnify("Success", {"is_staff": staff})
-    except Exception as e:
-        return 500, returnify(f"{e}", {})
-
 
 @router.get('/', response={200: ReturnSchema, 500: ReturnSchema}, tags=["GPO"], description="Returns all GPOs")
 def get_gpos(request):
@@ -74,8 +65,6 @@ def get_gpos(request):
     except Exception as e:
         return 500, returnify(f"{e}", {})
 
-
-# {"timestamp": 123123, "message": data, "data": json}
 
 @router.get('', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema}, tags=["GPO"],
             description="Returns a GPO")
@@ -105,6 +94,16 @@ def get_scripts(request, uuid: str):
         return 500, returnify(f"{e}", {})
 
 
+@router.post('/health-check', response={200: ReturnSchema, 500: ReturnSchema}, tags=["GPO"], description="Health Check")
+def health_check(request):
+    try:
+        _ = settings.gpo.dn
+        staff = request.auth.is_staff
+        return 200, returnify("Success", {"is_staff": staff})
+    except Exception as e:
+        return 500, returnify(f"{e}", {})
+
+
 @router.post('/', response={201: ReturnSchema, 402: ReturnSchema, 500: ReturnSchema}, tags=["GPO"],
              description="Creates a GPO")
 def create_gpo(request, name: str, container: Optional[str] = None):
@@ -116,23 +115,6 @@ def create_gpo(request, name: str, container: Optional[str] = None):
         return 201, returnify("Success", gpo_dataclass_to_schema(gpo))
     except AlreadyIsException as e:
         return 402, returnify(f"{e}", {})
-    except Exception as e:
-        return 500, returnify(f"{e}", {})
-
-
-@router.delete('/', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema}, tags=["GPO"],
-               description="Deletes a GPO")
-def delete_gpo(request, uuid: str):
-    try:
-        if not request.auth.is_staff:
-            return 401, returnify("Must be Staff", {})
-
-        settings.gpo.delete(uuid)
-        return 200, returnify("GPO Deleted", {})
-    except ValueError as e:
-        return 400, returnify(f"{e}", {})
-    except DoesNotExistException as e:
-        return 404, returnify(f"{e}", {})
     except Exception as e:
         return 500, returnify(f"{e}", {})
 
@@ -208,6 +190,23 @@ def script_add(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "
         return 404, returnify(f"{e}", {})
     except AlreadyIsException as e:
         return 200, scripts_dataclass_to_schema(settings.gpo.list_scripts(uuid))
+    except Exception as e:
+        return 500, returnify(f"{e}", {})
+
+
+@router.delete('/', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema}, tags=["GPO"],
+               description="Deletes a GPO")
+def delete_gpo(request, uuid: str):
+    try:
+        if not request.auth.is_staff:
+            return 401, returnify("Must be Staff", {})
+
+        settings.gpo.delete(uuid)
+        return 200, returnify("GPO Deleted", {})
+    except ValueError as e:
+        return 400, returnify(f"{e}", {})
+    except DoesNotExistException as e:
+        return 404, returnify(f"{e}", {})
     except Exception as e:
         return 500, returnify(f"{e}", {})
 

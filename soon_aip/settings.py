@@ -34,7 +34,7 @@ def get_env_variable(var_name):
 
 # SECURITY WARNING: keep the secret key used in production secret!
 # SECRET_KEY = 'django-insecure-d=3k%8+kjq1kxi*%6mi^n)!x%v@7iy*^7^(559o3z*9&fixrsy'
-SECRET_KEY = get_env_variable("SECRET_KEY")
+SECRET_KEY = get_env_variable("SoonSECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -160,6 +160,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = "user.CustomUser"
 
-gpo = GPO(get_env_variable("ADAdmin"), get_env_variable("ADPassword"), logging.getLogger('soon_api'))
+gpo = GPO(get_env_variable("SoonADAdmin"), get_env_variable("SoonADPassword"), logging.getLogger('soon_api'))
 
 SITE_HEADER = "Soon"

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import List, Dict, Optional, Union, Literal
 
-from .utils import GPOObject as GPOObject
+from .utils import GPOObject as GPOObject, GPOScripts
 
 
 class GPOModel(ABC):
@@ -37,3 +37,7 @@ class GPOModel(ABC):
     def delete_script(self, uuid: str, kind: Literal["Login", "Logoff", "Startup", "Shutdown"],
                       script: Union[str, Path, int]) -> None:
         """Removes a new script from the scripts of a GPO"""
+
+    @abstractmethod
+    def list_scripts(self, uuid: str) -> GPOScripts:
+        """Returns all available scripts of GPO"""

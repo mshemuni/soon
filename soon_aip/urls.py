@@ -25,6 +25,7 @@ from soon_aip.views import HomeView
 
 from user.models import CustomUser
 
+
 class ApiKey(APIKeyHeader):
     param_name = "X-API-Key"
 
@@ -40,12 +41,8 @@ api = NinjaAPI(
     title="Soon API",
     version="0.0.1 Beta",
     description=f"This is an API to manage GPOs on a samba-ad-dc. <a href='/'>Home</a>",
-    auth=ApiKey(),
-    # auth=None
+    auth=ApiKey()
 )
-
-
-# <br>`c16658b5-16c2-403b-9403-3b1faf94da86`
 
 api.add_router("gpo", gpo_router)
 

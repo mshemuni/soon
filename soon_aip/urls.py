@@ -24,31 +24,6 @@ from soon_aip.api import router as gpo_router
 from soon_aip.views import HomeView
 
 from user.models import CustomUser
-from django.http import JsonResponse
-
-api = NinjaAPI(
-    title="Soon API",
-    version="0.0.1 Beta",
-    description=f"This is an API to manage GPOs on a samba-ad-dc. <a href='/'>Home</a>",
-)
-
-
-class InvalidToken(Exception):
-    pass
-
-
-@api.exception_handler(InvalidToken)
-def on_invalid_token(request, exc):
-    return api.create_response(
-        request,
-        {
-            "timestamp": int(datetime.now().timestamp() * 1000),
-            "message": "Unauthorized",
-            "data": {}
-        }
-        , status=401
-    )
-
 
 class ApiKey(APIKeyHeader):
     param_name = "X-API-Key"
@@ -58,10 +33,19 @@ class ApiKey(APIKeyHeader):
             cu = CustomUser.objects.get(apikey=key)
             return cu
         except CustomUser.DoesNotExist:
-            raise InvalidToken
+            return
 
 
-api.auth = ApiKey()
+api = NinjaAPI(
+    title="Soon API",
+    version="0.0.1 Beta",
+    description=f"This is an API to manage GPOs on a samba-ad-dc. <a href='/'>Home</a>",
+    auth=ApiKey(),
+    # auth=None
+)
+
+
+# <br>`c16658b5-16c2-403b-9403-3b1faf94da86`
 
 api.add_router("gpo", gpo_router)
 

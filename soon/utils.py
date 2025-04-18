@@ -119,6 +119,32 @@ class Checker:
 
 class Fixer:
     @staticmethod
+    def uuid(uuid: str) -> str:
+        """
+        Checks if the given value is uuid
+
+        Parameters
+        ----------
+        uuid : str
+            The uuid to be checked
+
+        Returns
+        -------
+        None
+        """
+
+        matcher = r"^\{[0-9A-Fa-f]{8}-([0-9A-Fa-f]{4}-){3}[0-9A-Fa-f]{12}\}$"
+        if re.match(matcher, uuid):
+            return uuid
+
+        if re.match(matcher, f"{{{uuid}}}"):
+            return f"{{{uuid}}}"
+
+        raise ValueError(f"Invalid UUID format: '{uuid}'")
+
+
+
+    @staticmethod
     def logger(logger: Optional[Logger] = None, name: Optional[str] = None) -> Logger:
         """
         Checks if a logger is passed as an argument. If not, it returns a logger with the specified name

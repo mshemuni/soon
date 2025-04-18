@@ -1,8 +1,12 @@
 from datetime import datetime
-from typing import List
+from typing import List, Any
 
 from ninja import Schema
 
+class ReturnSchema(Schema):
+    timestamp: int
+    message: str
+    data: Any
 
 class ScriptSchema(Schema):
     order: int

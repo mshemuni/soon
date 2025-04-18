@@ -272,7 +272,7 @@ class GPO(GPOModel):
         self.logger.info(f"Getting GPO(s). param({uuid=})")
 
         if uuid is not None:
-            Checker.uuid(uuid)
+            uuid = Fixer.uuid(uuid)
 
             gpo_results = self.sam_database.search(
                 base=f"CN=Policies,CN=System,{self.dn}",
@@ -317,7 +317,7 @@ class GPO(GPOModel):
         """
         self.logger.info(f"Linking a container to a given GPO. param({uuid=}, {container=})")
 
-        Checker.uuid(uuid)
+        uuid = Fixer.uuid(uuid)
 
         if not self.__container_exists(container):
             raise DoesNotExistException(f"Container {container} not found")
@@ -389,7 +389,7 @@ class GPO(GPOModel):
         """
         self.logger.info(f"Unlinking a container from a given GPO. param({uuid=}, {container=})")
 
-        Checker.uuid(uuid)
+        uuid = Fixer.uuid(uuid)
 
         if not self.__container_exists(container):
             self.logger.error(f"Container {container} not found")
@@ -670,7 +670,7 @@ class GPO(GPOModel):
         """
         self.logger.info(f"Deletes a GPO using samba-tool. param({uuid=})")
 
-        Checker.uuid(uuid)
+        uuid = Fixer.uuid(uuid)
         _ = self.get(uuid)
 
         Checker.safe(self.user, "User")

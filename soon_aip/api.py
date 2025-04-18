@@ -56,6 +56,15 @@ def returnify(message, data):
         "data": data
     }
 
+@router.post('/health-check', response={200: ReturnSchema, 500: ReturnSchema}, tags=["GPO"], description="Health Check")
+def health(request):
+    try:
+        _ = settings.gpo.dn
+        staff = request.auth.is_staff
+        return 200, returnify("Success", {"is_staff": staff})
+    except Exception as e:
+        return 500, returnify(f"{e}", {})
+
 
 @router.get('/', response={200: ReturnSchema, 500: ReturnSchema}, tags=["GPO"], description="Returns all GPOs")
 def get_gpos(request):

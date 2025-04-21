@@ -249,7 +249,7 @@ class GPO(GPOModel):
         str :
             The realm
         """
-        self.logger.info(f"Gettinr realm")
+        self.logger.info(f"Getting realm")
 
         dn = self.dn
         domain_parts = [rdn.split('=')[1] for rdn in dn.split(',') if rdn.lower().startswith('dc=')]
@@ -781,9 +781,9 @@ class GPO(GPOModel):
 
         the_gpo = self.get(uuid)
         if kind in ["Startup", "Shutdown"]:
-            user_scripts_ini = the_gpo.local_path / "Machine" / "psscripts.ini"
+            user_scripts_ini = the_gpo.local_path / "Machine" / "Scripts" / "psscripts.ini"
         else:
-            user_scripts_ini = the_gpo.local_path / "User" / "psscripts.ini"
+            user_scripts_ini = the_gpo.local_path / "User" / "Scripts" / "psscripts.ini"
 
         if isinstance(script, (str, Path)):
             the_script = Fixer.script_to_order(user_scripts_ini, kind, script)

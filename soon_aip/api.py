@@ -174,7 +174,6 @@ def script_add(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "
         with open(temp_path, 'w') as temp_file:
             for line in file:
                 temp_file.write(line.decode())
-
         settings.gpo.add_script(uuid, kind, temp_path, parameters_value=parameters)
 
         return 200, returnify("Success", scripts_dataclass_to_schema(settings.gpo.list_scripts(uuid)))

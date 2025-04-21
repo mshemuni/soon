@@ -100,7 +100,7 @@ class Checker:
             True if the integrity is held
         """
         if section not in config.sections():
-            raise FileException("psscripts.ini file integrity error")
+            config.add_section(section)
 
         cmdline_keys = [key for key in config[section] if 'CmdLine' in key]
         param_keys = [key for key in config[section] if 'Parameters' in key]
@@ -141,8 +141,6 @@ class Fixer:
             return f"{{{uuid}}}"
 
         raise ValueError(f"Invalid UUID format: '{uuid}'")
-
-
 
     @staticmethod
     def logger(logger: Optional[Logger] = None, name: Optional[str] = None) -> Logger:
@@ -264,9 +262,9 @@ class Fixer:
         """
         try:
             if kind in ["Login", "Logoff"]:
-                script_base_path = gpo.local_path / "User" / kind
+                script_base_path = gpo.local_path / "User"/ "Scripts" / kind
             else:
-                script_base_path = gpo.local_path / "Machine" / kind
+                script_base_path = gpo.local_path / "Machine"/ "Scripts" / kind
 
             script_base_path.mkdir(parents=True, exist_ok=True)
 
@@ -293,9 +291,9 @@ class Fixer:
         """
         try:
             if kind in ["Login", "Logoff"]:
-                script_ini_file = gpo.local_path / "User" / "psscripts.ini"
+                script_ini_file = gpo.local_path / "User" / "Scripts" / "psscripts.ini"
             else:
-                script_ini_file = gpo.local_path / "Machine" / "psscripts.ini"
+                script_ini_file = gpo.local_path / "Machine" / "Scripts" / "psscripts.ini"
 
             if not script_ini_file.exists():
                 script_ini_file.touch()
@@ -555,8 +553,8 @@ class Fixer:
         GPOScripts :
             All scripts defined in all psscripts.ini files
         """
-        user_scripts_ini = gpo.local_path / "User" / "psscripts.ini"
-        machine_scripts_ini = gpo.local_path / "Machine" / "psscripts.ini"
+        user_scripts_ini = gpo.local_path / "User" / "Scripts" / "psscripts.ini"
+        machine_scripts_ini = gpo.local_path / "Machine" / "Scripts" / "psscripts.ini"
 
         return GPOScripts(
             login=Fixer.script_creator(user_scripts_ini, "Login"),

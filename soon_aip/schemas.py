@@ -33,5 +33,5 @@ class GPOSchema(Schema):
     user_extension_names: str
     machine_extension_names: str
     functionality_version: int
-    linked: List[str]
+    linked_to: List[str]
     # scripts: ScriptsSchema

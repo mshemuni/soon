@@ -17,9 +17,9 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 import os
 from django.core.exceptions import ImproperlyConfigured
+
 
 def get_env_variable(var_name):
     """Get the environment variable or raise an error."""

@@ -45,7 +45,7 @@ def gpo_dataclass_to_schema(gpo: GPOObject):
         "user_extension_names": gpo.user_extension_names,
         "machine_extension_names": gpo.machine_extension_names,
         "functionality_version": gpo.functionality_version,
-        "linked": gpo.linked
+        "linked_to": gpo.linked_to
     }
 
 

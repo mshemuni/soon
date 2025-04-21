@@ -8,7 +8,7 @@ from user.models import CustomUser
 
 @admin.register(CustomUser)
 class CustomUserAdmin(SoonAdmin):
-    readonly_fields = ["username", "apikey"]
+    readonly_fields = ["apikey"]
 
     list_display = ('full_name', 'username', 'email', 'is_staff')
     fieldsets = [

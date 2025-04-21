@@ -102,7 +102,7 @@ class GPO(GPOModel):
             user_extension_names=str(gpo.get("gPCUserExtensionNames", ["<No DN>"])[0]),
             machine_extension_names=str(gpo.get("gPCMachineExtensionNames", ["<No DN>"])[0]),
             functionality_version=int(gpo.get("gPCFunctionalityVersion", ["<No DN>"])[0]),
-            linked=self.__linked_to(str(gpo.get("name", ["<No CN>"])[0])),
+            linked_to=self.__linked_to(str(gpo.get("name", ["<No CN>"])[0])),
         )
 
     def __ldap_add(self, dn: str, attributes: Dict[str, str]) -> None:
@@ -707,8 +707,8 @@ class GPO(GPOModel):
 
         gpo = self.get(uuid)
 
-        if gpo.linked:
-            self.unlink(gpo.CN, gpo.linked)
+        if gpo.linked_to:
+            self.unlink(gpo.CN, gpo.linked_to)
 
         self.sam_database.transaction_start()
         try:

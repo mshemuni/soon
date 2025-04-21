@@ -76,9 +76,9 @@ class TestGPO(unittest.TestCase):
 
     def test_link(self):
 
-        self.assertListEqual(self.NEW_GPO.linked, [])
+        self.assertListEqual(self.NEW_GPO.linked_to, [])
         self.GPO.link(self.NEW_GPO.CN, self.GPO.dn)
-        self.assertListEqual(self.GPO.get(self.NEW_GPO.CN).linked, [self.GPO.dn])
+        self.assertListEqual(self.GPO.get(self.NEW_GPO.CN).linked_to, [self.GPO.dn])
 
 
     def test_link_does_not_exist(self):
@@ -90,18 +90,18 @@ class TestGPO(unittest.TestCase):
             self.GPO.link("BAD", self.GPO.dn)
 
     def test_link_container_does_not_exist(self):
-        self.assertListEqual(self.NEW_GPO.linked, [])
+        self.assertListEqual(self.NEW_GPO.linked_to, [])
 
         with self.assertRaises(DoesNotExistException):
             self.GPO.link(self.NEW_GPO.CN, "BAD")
 
-        self.assertListEqual(self.GPO.get(self.NEW_GPO.CN).linked, [])
+        self.assertListEqual(self.GPO.get(self.NEW_GPO.CN).linked_to, [])
 
 
     def test_link_already_linked(self):
         self.GPO.link(self.NEW_GPO.CN, self.GPO.dn)
 
-        self.assertListEqual(self.GPO.get(self.NEW_GPO.CN).linked, [self.GPO.dn])
+        self.assertListEqual(self.GPO.get(self.NEW_GPO.CN).linked_to, [self.GPO.dn])
 
         with self.assertRaises(AlreadyIsException):
             self.GPO.link(self.NEW_GPO.CN, self.GPO.dn)
@@ -109,11 +109,11 @@ class TestGPO(unittest.TestCase):
     def test_unlink(self):
         self.GPO.link(self.NEW_GPO.CN, self.GPO.dn)
 
-        self.assertListEqual(self.GPO.get(self.NEW_GPO.CN).linked, [self.GPO.dn])
+        self.assertListEqual(self.GPO.get(self.NEW_GPO.CN).linked_to, [self.GPO.dn])
 
         self.GPO.unlink(self.NEW_GPO.CN, self.GPO.dn)
 
-        self.assertListEqual(self.GPO.get(self.NEW_GPO.CN).linked, [])
+        self.assertListEqual(self.GPO.get(self.NEW_GPO.CN).linked_to, [])
 
     def test_unlink_does_not_exist(self):
         with self.assertRaises(DoesNotExistException):
@@ -124,16 +124,16 @@ class TestGPO(unittest.TestCase):
             self.GPO.unlink("BAD", self.GPO.dn)
 
     def test_unlink_container_does_not_exist(self):
-        self.assertListEqual(self.NEW_GPO.linked, [])
+        self.assertListEqual(self.NEW_GPO.linked_to, [])
 
         with self.assertRaises(DoesNotExistException):
             self.GPO.unlink(self.NEW_GPO.CN, "BAD")
 
-        self.assertListEqual(self.GPO.get(self.NEW_GPO.CN).linked, [])
+        self.assertListEqual(self.GPO.get(self.NEW_GPO.CN).linked_to, [])
 
 
     def test_unlink_already_unlinked(self):
-        self.assertListEqual(self.GPO.get(self.NEW_GPO.CN).linked, [])
+        self.assertListEqual(self.GPO.get(self.NEW_GPO.CN).linked_to, [])
         with self.assertRaises(AlreadyIsException):
             self.GPO.unlink(self.NEW_GPO.CN, self.GPO.dn)
 

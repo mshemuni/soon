@@ -1,5 +1,2 @@
 Django==5.2
-ldb==1.0
-django-ninja==1.4.1
-samba==0.0.0
-tks==0.2.1
+ninja==1.11.1.4

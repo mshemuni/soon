@@ -70,6 +70,12 @@ After creating the superuser, log in to the Django admin panel to edit the user 
 
 ---
 
+
+> 🔐 Note:  
+If you want to run the server on a virtual environment make sure you newly create environment inherits from the base environment.
+
+---
+
 ## ▶️ Run the Server
 
 ```bash

@@ -104,15 +104,20 @@ def health_check(request):
         return 500, returnify(f"{e}", {})
 
 
-@router.post('/', response={201: ReturnSchema, 402: ReturnSchema, 500: ReturnSchema}, tags=["GPO"],
+@router.post('/', response={201: ReturnSchema, 202: ReturnSchema, 402: ReturnSchema, 500: ReturnSchema}, tags=["GPO"],
              description="Creates a GPO")
-def create_gpo(request, name: str, container: Optional[str] = None):
+def create_gpo(request, name: str):
     try:
         if not request.auth.is_staff:
             return 401, returnify("Must be Staff", {})
 
-        gpo = settings.gpo.create(name, containers=container)
-        return 201, returnify("Success", gpo_dataclass_to_schema(gpo))
+        gpo = settings.gpo.create(name)
+        if isinstance(gpo, str):
+            return 202, returnify("Success", gpo)
+
+        else:
+            return 201, returnify("Success", gpo_dataclass_to_schema(gpo))
+
     except AlreadyIsException as e:
         return 402, returnify(f"{e}", {})
     except Exception as e:
@@ -161,7 +166,35 @@ def unlink_gpo(request, uuid: str, container: Optional[str] = None):
 
 @router.patch('/script', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
               tags=["GPO"],
-              description="Adds a script to a GPO")
+              description="Adds a script to a GPO, Script kinds can be: `Login`, `Logoff`, `Startup`, `Shutdown`")
+def script_add(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "Shutdown"], file: str,
+               parameters: str = ""):
+    try:
+        if not request.auth.is_staff:
+            return 401, returnify("Must be Staff", {})
+
+        settings.gpo.add_script(uuid, kind, file, parameters_value=parameters)
+
+        return 200, returnify("Success", scripts_dataclass_to_schema(settings.gpo.list_scripts(uuid)))
+    except ValueError as e:
+        return 400, returnify(f"{e}", {})
+    except FileNotFoundError as e:
+        return 404, returnify(f"{e}", {})
+    except FileException as e:
+        return 500, returnify(f"{e}", {})
+    except IdentityException as e:
+        return 500, returnify(f"{e}", {})
+    except DoesNotExistException as e:
+        return 404, returnify(f"{e}", {})
+    except AlreadyIsException as e:
+        return 200, scripts_dataclass_to_schema(settings.gpo.list_scripts(uuid))
+    except Exception as e:
+        return 500, returnify(f"{e}", {})
+
+
+@router.patch('/script/file', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
+              tags=["GPO"],
+              description="Adds a script to a GPO, Script kinds can be: `Login`, `Logoff`, `Startup`, `Shutdown`")
 def script_add(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "Shutdown"], parameters: str = "",
                file: UploadedFile = File(...)):
     try:
@@ -212,7 +245,7 @@ def delete_gpo(request, uuid: str):
 
 @router.delete('/script', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
                tags=["GPO"],
-               description="Removes a script from a GPO")
+               description="Removes a script from a GPO. Deleting a script requires the script name or Order in the script parameter")
 def script_delete(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "Shutdown"], script: Union[str, int]):
     try:
         if not request.auth.is_staff:

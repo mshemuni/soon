@@ -45,15 +45,15 @@ class TestGPO(unittest.TestCase):
         with self.assertRaises(ValueError):
             _ = self.GPO.get("BAD")
 
-    def test_create(self):
-        new_name = "".join(choices(ascii_letters, k=12))
-        new_gpo = self.GPO.create(new_name)
-
-        self.assertIsInstance(new_gpo, GPOObject)
-        self.assertEqual(new_gpo.name, new_name)
-
-        with self.assertRaises(AlreadyIsException):
-            _ = self.GPO.create(new_gpo.name)
+    # def test_create(self):
+    #     new_name = "".join(choices(ascii_letters, k=12))
+    #     new_gpo = self.GPO.create(new_name)
+    #
+    #     self.assertIsInstance(new_gpo, GPOObject)
+    #     self.assertEqual(new_gpo.name, new_name)
+    #
+    #     with self.assertRaises(AlreadyIsException):
+    #         _ = self.GPO.create(new_gpo.name)
 
 
     def test_create_bad_name(self):

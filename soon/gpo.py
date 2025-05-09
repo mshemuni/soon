@@ -5,11 +5,12 @@ import uuid as pyuuid
 from datetime import datetime
 from logging import Logger
 from pathlib import Path
+from time import sleep
 from typing import Optional, List, Union, Literal, Dict
 
 from samba.netcmd.gpo import get_gpo_dn
 
-from soon.errors import DoesNotExistException, AlreadyIsException, FileException, IdentityException
+from soon.errors import DoesNotExistException, AlreadyIsException, FileException, IdentityException, ActionException
 from .models import GPOModel
 from .utils import GPOObject, Checker, Fixer, GPOScripts
 from samba import param
@@ -471,7 +472,7 @@ class GPO(GPOModel):
                 except AlreadyIsException:
                     continue
 
-    def create(self, name: str, containers: Optional[str] = None) -> GPOObject:
+    def create(self, name: str) -> Union[GPOObject, str]:
         """
         Creates a GPO and links to the container if given.
         Uses samba-tool. But it might change later.
@@ -493,7 +494,7 @@ class GPO(GPOModel):
 
         return self.samba_create(name, containers=containers)
 
-    def samba_create(self, name: str, containers: Optional[str] = None) -> GPOObject:
+    def samba_create(self, name: str) -> Union[GPOObject, str]:
         """
         Creates a GPO using samba-tool and links to the container if given
 
@@ -535,12 +536,12 @@ class GPO(GPOModel):
             match = re.search(r'\{([0-9A-Fa-f\-]{36})\}', result.stdout.strip())
             if match:
                 uuid = match.group(1)
-                gpo = self.get(f"{{{uuid}}}")
-
-                if containers:
-                    self.link(gpo.CN, containers)
-
-                return self.get(f"{{{uuid}}}")
+                try:
+                    gpo = self.get(f"{{{uuid}}}")
+                    return gpo
+                except Exception as e:
+                    self.logger.warning(f"{e}")
+                    return uuid
 
             self.logger.error("Cannot create GPO")
             raise ValueError("Cannot create GPO")
@@ -549,7 +550,7 @@ class GPO(GPOModel):
             self.logger.error(f"{e}")
             raise IdentityException(f"{e}")
 
-    def pseudo_create(self, name: str, containers: Optional[str] = None) -> GPOObject:
+    def pseudo_create(self, name: str) -> Union[GPOObject, str]:
         """
         Creates a GPO using ldap and links to the container if given
 
@@ -631,9 +632,6 @@ class GPO(GPOModel):
 
         created_gpo = self.get(gpo)
         Fixer.apply_reference_permissions_and_owner(default_gpo.local_path, created_gpo.local_path)
-
-        if containers:
-            self.link(created_gpo.CN, containers)
 
         return created_gpo
 

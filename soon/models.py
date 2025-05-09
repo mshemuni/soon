@@ -20,7 +20,7 @@ class GPOModel(ABC):
         """Unlinks a GPO from the given container"""
 
     @abstractmethod
-    def create(self, name: str, container: Optional[str] = None) -> Dict:
+    def create(self, name: str) -> Union[GPOObject, str]:
         """Creates a new GPO"""
 
     @abstractmethod

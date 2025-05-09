@@ -490,9 +490,9 @@ class GPO(GPOModel):
             The GPOObject of the created GPO.
 
         """
-        self.logger.info(f"Creating a GPO. param({name=}, {containers=})")
+        self.logger.info(f"Creating a GPO. param({name=})")
 
-        return self.samba_create(name, containers=containers)
+        return self.samba_create(name)
 
     def samba_create(self, name: str) -> Union[GPOObject, str]:
         """
@@ -511,7 +511,7 @@ class GPO(GPOModel):
             The GPOObject of the created GPO.
 
         """
-        self.logger.info(f"Creating a GPO using samba-tool. param({name=}, {containers=})")
+        self.logger.info(f"Creating a GPO using samba-tool. param({name=})")
 
         Checker.safe(name, "Name")
 
@@ -566,7 +566,7 @@ class GPO(GPOModel):
         GPOObject :
             The GPOObject of the created GPO.
         """
-        self.logger.info(f"Creating a GPO using ldap. param({name=}, {containers=})")
+        self.logger.info(f"Creating a GPO using ldap. param({name=})")
 
         # Copy & pasted from cmd_create(GPOCommand):
         try:

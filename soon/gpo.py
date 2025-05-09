@@ -541,7 +541,7 @@ class GPO(GPOModel):
                     return gpo
                 except Exception as e:
                     self.logger.warning(f"{e}")
-                    return uuid
+                    return f"{{{uuid}}}"
 
             self.logger.error("Cannot create GPO")
             raise ValueError("Cannot create GPO")

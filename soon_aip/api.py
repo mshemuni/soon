@@ -114,10 +114,11 @@ def create_gpo(request, name: str):
         gpo = settings.gpo.create(name)
 
         if isinstance(gpo, str):
-            return 202, returnify("Success", gpo)
-
+            guid = gpo
         else:
-            return 201, returnify("Success", gpo_dataclass_to_schema(gpo))
+            guid = gpo.CN
+
+        return 201, returnify("Success", guid)
 
     except AlreadyIsException as e:
         return 402, returnify(f"{e}", {})

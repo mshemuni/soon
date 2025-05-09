@@ -1,6 +1,7 @@
 import re
 import shutil
 import subprocess
+import time
 import uuid as pyuuid
 from datetime import datetime
 from logging import Logger
@@ -534,6 +535,9 @@ class GPO(GPOModel):
             result = subprocess.run(command, input=f"{self.passwd}\n", check=True, text=True, capture_output=True)
 
             match = re.search(r'\{([0-9A-Fa-f\-]{36})\}', result.stdout.strip())
+
+            time.sleep(10)
+
             if match:
                 uuid = match.group(1)
                 try:
@@ -679,6 +683,9 @@ class GPO(GPOModel):
             result = subprocess.run(command, input=f"{self.passwd}\n", check=True, text=True, capture_output=True)
 
             match = re.search(r'\{([0-9A-Fa-f\-]{36})\}', result.stdout.strip())
+
+            time.sleep(10)
+
             if not match:
                 self.logger.error("Cannot delete GPO")
                 raise ValueError("Cannot delete GPO")

@@ -67,7 +67,7 @@ def get_gpos(request):
         return 500, returnify(f"{e}", {})
 
 
-@router.get('', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
+@router.get('/', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
             tags=["GPO"], description="Returns a GPO")
 def get_gpo(request, uuid: str):
     try:
@@ -299,7 +299,7 @@ def script_delete(request, uuid: str, kind: Literal["Login", "Logoff", "Startup"
 @router.get('/integrity', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
             tags=["GPO"],
             description="Returns GPO's Integrity")
-def gpo_integrity(request, uuid: str):
+def get_gpo_integrity(request, uuid: str):
     try:
 
         return 200, returnify("Success", settings.gpo.integrity(uuid))
@@ -314,7 +314,7 @@ def gpo_integrity(request, uuid: str):
 @router.get('/availability', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
             tags=["GPO"],
             description="Returns GPO's Availability")
-def gpo_availability(request, uuid: str):
+def get_gpo_availability(request, uuid: str):
     try:
 
         return 200, returnify("Success", settings.gpo.availability(uuid))

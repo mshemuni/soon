@@ -319,7 +319,7 @@ class GPO(GPOModel):
 
         uuid = Fixer.uuid(uuid)
 
-        if self.integrity(uuid):
+        if not all(self.availability(uuid).values()):
             raise ActionException("The GPO is not available on all domain controllers")
 
         if not self.__container_exists(container):
@@ -394,7 +394,7 @@ class GPO(GPOModel):
 
         uuid = Fixer.uuid(uuid)
 
-        if self.integrity(uuid):
+        if not all(self.availability(uuid).values()):
             raise ActionException("The GPO is not available on all domain controllers")
 
         if not self.__container_exists(container):
@@ -520,16 +520,16 @@ class GPO(GPOModel):
 
         Checker.safe(name, "Name")
 
-        gpo_results = self.sam_database.search(
-            base=f"CN=Policies,CN=System,{self.dn}",
-            scope=ldb.SCOPE_ONELEVEL,
-            expression=f"(displayName={name})",
-            attrs=self.ATTRS
-        )
+        # gpo_results = self.sam_database.search(
+        #     base=f"CN=Policies,CN=System,{self.dn}",
+        #     scope=ldb.SCOPE_ONELEVEL,
+        #     expression=f"(displayName={name})",
+        #     attrs=self.ATTRS
+        # )
 
-        if gpo_results:
-            self.logger.error(f"A GPO already existing with name {name}")
-            raise AlreadyIsException(f"A GPO already existing with name {name}")
+        if any(Checker.gpo_availability_named(name).values()):
+            self.logger.error(f"A GPO might exits with name {name}")
+            raise AlreadyIsException(f"A GPO might exits with name {name}")
 
         Checker.safe(self.user, "User")
         Checker.safe(self.passwd, "Password")
@@ -678,7 +678,7 @@ class GPO(GPOModel):
         Checker.safe(self.user, "User")
         Checker.safe(self.passwd, "Password")
 
-        if not self.integrity(uuid):
+        if not all(self.availability(uuid).values()):
             raise ActionException("The GPO is not available on all domain controllers")
 
         command = ["samba-tool", "gpo", "del", uuid, "-U", self.user]
@@ -760,7 +760,7 @@ class GPO(GPOModel):
 
         uuid = Fixer.uuid(uuid)
 
-        if self.integrity(uuid):
+        if not all(self.availability(uuid).values()):
             raise ActionException("The GPO is not available on all domain controllers")
 
         the_gpo = self.get(uuid)
@@ -792,7 +792,7 @@ class GPO(GPOModel):
 
         uuid = Fixer.uuid(uuid)
 
-        if self.integrity(uuid):
+        if not all(self.availability(uuid).values()):
             raise ActionException("The GPO is not available on all domain controllers")
 
         the_gpo = self.get(uuid)
@@ -830,7 +830,7 @@ class GPO(GPOModel):
 
         uuid = Fixer.uuid(uuid)
 
-        if self.integrity(uuid):
+        if not all(self.availability(uuid).values()):
             raise ActionException("The GPO is not available on all domain controllers")
 
         the_gpo = self.get(uuid)

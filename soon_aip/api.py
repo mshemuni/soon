@@ -90,10 +90,10 @@ def get_scripts(request, uuid: str):
         return 200, returnify("Success", scripts_dataclass_to_schema(settings.gpo.list_scripts(uuid)))
     except ValueError as e:
         return 400, returnify(f"{e}", {})
-    except ActionException as e:
-        return 409, returnify(f"{e}", {})
     except DoesNotExistException as e:
         return 404, returnify(f"{e}", {})
+    except ActionException as e:
+        return 409, returnify(f"{e}", {})
     except Exception as e:
         return 500, returnify(f"{e}", {})
 
@@ -139,14 +139,14 @@ def link_gpo(request, uuid: str, container: str):
         if not request.auth.is_staff:
             return 401, returnify("Must be Staff", {})
 
-        settings.gpo.link(uuid, container)
+        settings.gpo.link_single(uuid, container)
         return 200, returnify("Success", gpo_dataclass_to_schema(settings.gpo.get(uuid)))
     except ValueError as e:
         return 400, returnify(f"{e}", {})
-    except ActionException as e:
-        return 409, returnify(f"{e}", {})
     except DoesNotExistException as e:
         return 404, returnify(f"{e}", {})
+    except ActionException as e:
+        return 409, returnify(f"{e}", {})
     except AlreadyIsException as _:
         return 200, gpo_dataclass_to_schema(settings.gpo.get(uuid))
     except Exception as e:
@@ -162,14 +162,14 @@ def unlink_gpo(request, uuid: str, container: Optional[str] = None):
         if not request.auth.is_staff:
             return 401, returnify("Must be Staff", {})
 
-        settings.gpo.unlink(uuid, container)
+        settings.gpo.unlink_single(uuid, container)
         return 200, returnify("Success", gpo_dataclass_to_schema(settings.gpo.get(uuid)))
-    except ActionException as e:
-        return 409, returnify(f"{e}", {})
     except ValueError as e:
         return 400, returnify(f"{e}", {})
     except DoesNotExistException as e:
         return 404, returnify(f"{e}", {})
+    except ActionException as e:
+        return 409, returnify(f"{e}", {})
     except AlreadyIsException as _:
         return 200, gpo_dataclass_to_schema(settings.gpo.get(uuid))
     except Exception as e:
@@ -226,10 +226,10 @@ def script_add(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "
         return 200, returnify("Success", scripts_dataclass_to_schema(settings.gpo.list_scripts(uuid)))
     except ValueError as e:
         return 400, returnify(f"{e}", {})
-    except ActionException as e:
-        return 409, returnify(f"{e}", {})
     except FileNotFoundError as e:
         return 404, returnify(f"{e}", {})
+    except ActionException as e:
+        return 409, returnify(f"{e}", {})
     except FileException as e:
         return 500, returnify(f"{e}", {})
     except IdentityException as e:

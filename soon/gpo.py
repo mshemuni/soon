@@ -542,10 +542,10 @@ class GPO(GPOModel):
 
             if match:
                 uuid = match.group(1)
-                if self.integrity(uuid):
+                try:
                     return self.get(f"{{{uuid}}}")
-
-                return f"{{{uuid}}}"
+                except:
+                    return f"{{{uuid}}}"
 
             self.logger.error("Cannot create GPO")
             raise ValueError("Cannot create GPO")

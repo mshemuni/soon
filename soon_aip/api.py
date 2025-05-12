@@ -7,7 +7,7 @@ from ninja import File
 from ninja.files import UploadedFile
 
 from soon.errors import DoesNotExistException, AlreadyIsException, FileException, IdentityException, ActionException
-from soon.utils import GPOObject, Script, GPOScripts, Checker
+from soon.utils import GPOObject, Script, GPOScripts
 from soon_aip import settings
 
 from soon_aip.schemas import ReturnSchema
@@ -57,7 +57,8 @@ def returnify(message, data):
     }
 
 
-@router.get('/', response={200: ReturnSchema, 500: ReturnSchema}, tags=["GPO"], description="Returns all GPOs")
+@router.get('/', response={200: ReturnSchema, 500: ReturnSchema}, tags=["GPO"],
+            description="Returns all GPOs")
 def get_gpos(request):
     try:
         gpos = settings.gpo.get()
@@ -80,7 +81,8 @@ def get_gpo(request, uuid: str):
         return 500, returnify(f"{e}", {})
 
 
-@router.get('/scripts', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
+@router.get('/scripts',
+            response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
             tags=["GPO"],
             description="Returns all scripts belong to a GPO")
 def get_scripts(request, uuid: str):
@@ -88,6 +90,8 @@ def get_scripts(request, uuid: str):
         return 200, returnify("Success", scripts_dataclass_to_schema(settings.gpo.list_scripts(uuid)))
     except ValueError as e:
         return 400, returnify(f"{e}", {})
+    except ActionException as e:
+        return 409, returnify(f"{e}", {})
     except DoesNotExistException as e:
         return 404, returnify(f"{e}", {})
     except Exception as e:
@@ -105,7 +109,9 @@ def health_check(request):
 
 
 @router.post('/', response={201: ReturnSchema, 202: ReturnSchema, 402: ReturnSchema, 500: ReturnSchema}, tags=["GPO"],
-             description="Creates a GPO")
+             description="Creates a GPO. `201` means a GPO is created and is available over all domain controllers and "
+                         "a GPO object is returned. `202` mean a GPO is created but it is not available over all "
+                         "domain controllers and a GUID is returned as a string.")
 def create_gpo(request, name: str):
     try:
         if not request.auth.is_staff:
@@ -124,7 +130,8 @@ def create_gpo(request, name: str):
         return 500, returnify(f"{e}", {})
 
 
-@router.patch('/link', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
+@router.patch('/link',
+              response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
               tags=["GPO"],
               description="Links a GPO to a container")
 def link_gpo(request, uuid: str, container: str):
@@ -136,6 +143,8 @@ def link_gpo(request, uuid: str, container: str):
         return 200, returnify("Success", gpo_dataclass_to_schema(settings.gpo.get(uuid)))
     except ValueError as e:
         return 400, returnify(f"{e}", {})
+    except ActionException as e:
+        return 409, returnify(f"{e}", {})
     except DoesNotExistException as e:
         return 404, returnify(f"{e}", {})
     except AlreadyIsException as _:
@@ -144,7 +153,8 @@ def link_gpo(request, uuid: str, container: str):
         return 500, returnify(f"{e}", {})
 
 
-@router.patch('/unlink', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
+@router.patch('/unlink',
+              response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
               tags=["GPO"],
               description="Unlinks a GPO from a container. If container not given it will unlink from all containers")
 def unlink_gpo(request, uuid: str, container: Optional[str] = None):
@@ -154,6 +164,8 @@ def unlink_gpo(request, uuid: str, container: Optional[str] = None):
 
         settings.gpo.unlink(uuid, container)
         return 200, returnify("Success", gpo_dataclass_to_schema(settings.gpo.get(uuid)))
+    except ActionException as e:
+        return 409, returnify(f"{e}", {})
     except ValueError as e:
         return 400, returnify(f"{e}", {})
     except DoesNotExistException as e:
@@ -193,7 +205,8 @@ def unlink_gpo(request, uuid: str, container: Optional[str] = None):
 #         return 500, returnify(f"{e}", {})
 #
 
-@router.patch('/script', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
+@router.patch('/script',
+              response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
               tags=["GPO"],
               description="Adds a script to a GPO, Script kinds can be: `Login`, `Logoff`, `Startup`, `Shutdown`")
 def script_add(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "Shutdown"], parameters: str = "",
@@ -213,6 +226,8 @@ def script_add(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "
         return 200, returnify("Success", scripts_dataclass_to_schema(settings.gpo.list_scripts(uuid)))
     except ValueError as e:
         return 400, returnify(f"{e}", {})
+    except ActionException as e:
+        return 409, returnify(f"{e}", {})
     except FileNotFoundError as e:
         return 404, returnify(f"{e}", {})
     except FileException as e:
@@ -247,7 +262,8 @@ def delete_gpo(request, uuid: str):
         return 500, returnify(f"{e}", {})
 
 
-@router.delete('/script', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
+@router.delete('/script',
+               response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
                tags=["GPO"],
                description="Removes a script from a GPO. Deleting a script requires the script name or Order in the script parameter")
 def script_delete(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "Shutdown"], script: Union[str, int]):
@@ -266,6 +282,8 @@ def script_delete(request, uuid: str, kind: Literal["Login", "Logoff", "Startup"
         return 400, returnify(f"{e}", {})
     except FileNotFoundError as e:
         return 404, returnify(f"{e}", {})
+    except ActionException as e:
+        return 409, returnify(f"{e}", {})
     except FileException as e:
         return 500, returnify(f"{e}", {})
     except IdentityException as e:
@@ -284,7 +302,7 @@ def script_delete(request, uuid: str, kind: Literal["Login", "Logoff", "Startup"
 def gpo_integrity(request, uuid: str):
     try:
 
-        return 200, returnify("Success", Checker.gpo_integrity(uuid))
+        return 200, returnify("Success", settings.gpo.integrity(uuid))
     except ValueError as e:
         return 400, returnify(f"{e}", {})
     except DoesNotExistException as e:
@@ -299,7 +317,7 @@ def gpo_integrity(request, uuid: str):
 def gpo_availability(request, uuid: str):
     try:
 
-        return 200, returnify("Success", Checker.gpo_availability(uuid))
+        return 200, returnify("Success", settings.gpo.availability(uuid))
     except ValueError as e:
         return 400, returnify(f"{e}", {})
     except DoesNotExistException as e:

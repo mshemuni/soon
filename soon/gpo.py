@@ -319,6 +319,9 @@ class GPO(GPOModel):
 
         uuid = Fixer.uuid(uuid)
 
+        if self.integrity(uuid):
+            raise ActionException("The GPO is not available on all domain controllers")
+
         if not self.__container_exists(container):
             raise DoesNotExistException(f"Container {container} not found")
 
@@ -390,6 +393,9 @@ class GPO(GPOModel):
         self.logger.info(f"Unlinking a container from a given GPO. param({uuid=}, {container=})")
 
         uuid = Fixer.uuid(uuid)
+
+        if self.integrity(uuid):
+            raise ActionException("The GPO is not available on all domain controllers")
 
         if not self.__container_exists(container):
             self.logger.error(f"Container {container} not found")
@@ -536,7 +542,7 @@ class GPO(GPOModel):
 
             if match:
                 uuid = match.group(1)
-                if Checker.gpo_integrity(uuid):
+                if self.integrity(uuid):
                     return self.get(f"{{{uuid}}}")
 
                 return f"{{{uuid}}}"
@@ -672,7 +678,7 @@ class GPO(GPOModel):
         Checker.safe(self.user, "User")
         Checker.safe(self.passwd, "Password")
 
-        if not Checker.gpo_integrity(uuid):
+        if not self.integrity(uuid):
             raise ActionException("The GPO is not available on all domain controllers")
 
         command = ["samba-tool", "gpo", "del", uuid, "-U", self.user]
@@ -752,6 +758,11 @@ class GPO(GPOModel):
         """
         self.logger.info(f"Adding a script to a GPO. param({uuid=}, {kind=}, {script=})")
 
+        uuid = Fixer.uuid(uuid)
+
+        if self.integrity(uuid):
+            raise ActionException("The GPO is not available on all domain controllers")
+
         the_gpo = self.get(uuid)
         the_script = Fixer.script(script)
         Fixer.script_prepare(the_gpo, kind, the_script, parameters_value=parameters_value)
@@ -778,6 +789,11 @@ class GPO(GPOModel):
         None
         """
         self.logger.info(f"Removing a script from a GPO. param({uuid=}, {kind=}, {script=})")
+
+        uuid = Fixer.uuid(uuid)
+
+        if self.integrity(uuid):
+            raise ActionException("The GPO is not available on all domain controllers")
 
         the_gpo = self.get(uuid)
         if kind in ["Startup", "Shutdown"]:
@@ -812,5 +828,42 @@ class GPO(GPOModel):
         """
         self.logger.info(f"Listing all scripts of a GPO. param({uuid=})")
 
+        uuid = Fixer.uuid(uuid)
+
+        if self.integrity(uuid):
+            raise ActionException("The GPO is not available on all domain controllers")
+
         the_gpo = self.get(uuid)
         return Fixer.scripts(the_gpo)
+
+    def integrity(self, uuid: str) -> bool:
+        """
+        Returns an integrity of a GPO on all domain controllers. True if is/is not available on all controllers
+
+        Parameters
+        ----------
+        uuid : str
+            GUID of a GPO
+
+        Returns
+        -------
+        bool :
+            True if a GPO is or is not available on all controllers
+        """
+        return Checker.gpo_integrity(uuid)
+
+    def availability(self, uuid: str) -> Dict[str, bool]:
+        """
+        Returns a dictionary of availability of a GPO on all domain controllers
+
+        Parameters
+        ----------
+        uuid : str
+            GUID of a GPO
+
+        Returns
+        -------
+        Dict[str, bool] :
+            Availability of a GPO on all domain controllers as a dictionary as {"domain_controller": bool}
+        """
+        return Checker.gpo_availability(uuid)

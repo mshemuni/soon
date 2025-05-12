@@ -6,8 +6,8 @@ from ninja import Router
 from ninja import File
 from ninja.files import UploadedFile
 
-from soon.errors import DoesNotExistException, AlreadyIsException, FileException, IdentityException
-from soon.utils import GPOObject, Script, GPOScripts
+from soon.errors import DoesNotExistException, AlreadyIsException, FileException, IdentityException, ActionException
+from soon.utils import GPOObject, Script, GPOScripts, Checker
 from soon_aip import settings
 
 from soon_aip.schemas import ReturnSchema
@@ -114,11 +114,9 @@ def create_gpo(request, name: str):
         gpo = settings.gpo.create(name)
 
         if isinstance(gpo, str):
-            guid = gpo
-        else:
-            guid = gpo.CN
+            return 202, returnify("Success", gpo)
 
-        return 201, returnify("Success", guid)
+        return 201, returnify("Success", gpo_dataclass_to_schema(gpo))
 
     except AlreadyIsException as e:
         return 402, returnify(f"{e}", {})
@@ -140,7 +138,7 @@ def link_gpo(request, uuid: str, container: str):
         return 400, returnify(f"{e}", {})
     except DoesNotExistException as e:
         return 404, returnify(f"{e}", {})
-    except AlreadyIsException as e:
+    except AlreadyIsException as _:
         return 200, gpo_dataclass_to_schema(settings.gpo.get(uuid))
     except Exception as e:
         return 500, returnify(f"{e}", {})
@@ -160,10 +158,11 @@ def unlink_gpo(request, uuid: str, container: Optional[str] = None):
         return 400, returnify(f"{e}", {})
     except DoesNotExistException as e:
         return 404, returnify(f"{e}", {})
-    except AlreadyIsException as e:
+    except AlreadyIsException as _:
         return 200, gpo_dataclass_to_schema(settings.gpo.get(uuid))
     except Exception as e:
         return 500, returnify(f"{e}", {})
+
 
 #
 # @router.patch('/script', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
@@ -222,13 +221,14 @@ def script_add(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "
         return 500, returnify(f"{e}", {})
     except DoesNotExistException as e:
         return 404, returnify(f"{e}", {})
-    except AlreadyIsException as e:
+    except AlreadyIsException as _:
         return 200, scripts_dataclass_to_schema(settings.gpo.list_scripts(uuid))
     except Exception as e:
         return 500, returnify(f"{e}", {})
 
 
-@router.delete('/', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
+@router.delete('/',
+               response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
                tags=["GPO"], description="Deletes a GPO")
 def delete_gpo(request, uuid: str):
     try:
@@ -239,6 +239,8 @@ def delete_gpo(request, uuid: str):
         return 200, returnify("GPO Deleted", {})
     except ValueError as e:
         return 400, returnify(f"{e}", {})
+    except ActionException as e:
+        return 409, returnify(f"{e}", {})
     except DoesNotExistException as e:
         return 404, returnify(f"{e}", {})
     except Exception as e:
@@ -270,7 +272,37 @@ def script_delete(request, uuid: str, kind: Literal["Login", "Logoff", "Startup"
         return 500, returnify(f"{e}", {})
     except DoesNotExistException as e:
         return 404, returnify(f"{e}", {})
-    except AlreadyIsException as e:
+    except AlreadyIsException as _:
         return 200, scripts_dataclass_to_schema(settings.gpo.list_scripts(uuid))
+    except Exception as e:
+        return 500, returnify(f"{e}", {})
+
+
+@router.get('/integrity', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
+            tags=["GPO"],
+            description="Returns GPO's Integrity")
+def gpo_integrity(request, uuid: str):
+    try:
+
+        return 200, returnify("Success", Checker.gpo_integrity(uuid))
+    except ValueError as e:
+        return 400, returnify(f"{e}", {})
+    except DoesNotExistException as e:
+        return 404, returnify(f"{e}", {})
+    except Exception as e:
+        return 500, returnify(f"{e}", {})
+
+
+@router.get('/availability', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
+            tags=["GPO"],
+            description="Returns GPO's Availability")
+def gpo_availability(request, uuid: str):
+    try:
+
+        return 200, returnify("Success", Checker.gpo_availability(uuid))
+    except ValueError as e:
+        return 400, returnify(f"{e}", {})
+    except DoesNotExistException as e:
+        return 404, returnify(f"{e}", {})
     except Exception as e:
         return 500, returnify(f"{e}", {})

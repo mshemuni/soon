@@ -8,8 +8,13 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from logging import Logger, getLogger
 from pathlib import Path
-from typing import List, Union, Literal, Optional
+from typing import List, Union, Literal, Optional, Dict
 import re
+
+from samba import param
+from samba.auth import system_session
+from samba.samdb import SamDB
+import ldb
 
 from soon.errors import FileException, DoesNotExistException
 
@@ -115,6 +120,99 @@ class Checker:
                 raise FileException("psscripts.ini file integrity error")
 
         return True
+
+    @staticmethod
+    def get_list_of_controllers() -> List[str]:
+        """
+        Returns a list of domain controllers
+
+        Returns
+        -------
+        List[str] :
+            a list of Domain Controllers as COMPUTER_NAME.REALM
+        """
+        lp = param.LoadParm()
+        lp.load_default()
+
+        sam_database = SamDB(session_info=system_session(), lp=lp)
+
+        domain_controllers = sam_database.search(
+            base=sam_database.get_default_basedn(),
+            scope=ldb.SCOPE_SUBTREE,  # Search entire directory
+            expression="(&(objectClass=computer)(userAccountControl:1.2.840.113556.1.4.803:=8192))",
+            attrs=["name", "dNSHostName"]
+        )
+
+        return [
+            str(dc.get("dNSHostName"))
+            for dc in domain_controllers
+        ]
+
+    @staticmethod
+    def gpo_availability(uuid: str) -> Dict[str, bool]:
+        """
+        Returns a dictionary of availability of a GPO on all domain controllers
+
+        Parameters
+        ----------
+        uuid : str
+            GUID of a GPO
+
+        Returns
+        -------
+        Dict[str, bool] :
+            Availability of a GPO on all domain controllers as a dictionary as {"domain_controller": bool}
+        """
+        Fixer.uuid(uuid)
+
+        result = {}
+        for dc in Checker.get_list_of_controllers():
+            ldap_uri = f"ldap://{dc}"
+
+            lp = param.LoadParm()
+            lp.load_default()
+
+            samba_database = SamDB(
+                url=ldap_uri,
+                session_info=system_session(),
+                lp=lp
+            )
+
+            gpo_dn = f"CN={uuid},CN=Policies,CN=System,{samba_database.domain_dn()}"
+
+            try:
+                _ = samba_database.search(
+                    base=gpo_dn,
+                    scope=ldb.SCOPE_BASE,
+                    attrs=["displayName", "gPCFileSysPath", "versionNumber"]
+                )
+                result[dc] = True
+
+            # except ldb.LdbError as _:
+            except:
+                result[dc] = False
+
+        return result
+
+    @staticmethod
+    def gpo_integrity(uuid: str) -> bool:
+        """
+        Returns an integrity of a GPO on all domain controllers. True if is/is not available on all controllers
+
+        Parameters
+        ----------
+        uuid : str
+            GUID of a GPO
+
+        Returns
+        -------
+        bool :
+            True if a GPO is or is not available on all controllers
+        """
+        Fixer.uuid(uuid)
+
+        gpo_availability = Checker.gpo_availability(uuid)
+        return all(gpo_availability.values()) or not any(gpo_availability.values())
 
 
 class Fixer:
@@ -262,9 +360,9 @@ class Fixer:
         """
         try:
             if kind in ["Login", "Logoff"]:
-                script_base_path = gpo.local_path / "User"/ "Scripts" / kind
+                script_base_path = gpo.local_path / "User" / "Scripts" / kind
             else:
-                script_base_path = gpo.local_path / "Machine"/ "Scripts" / kind
+                script_base_path = gpo.local_path / "Machine" / "Scripts" / kind
 
             script_base_path.mkdir(parents=True, exist_ok=True)
 

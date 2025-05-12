@@ -1,12 +1,10 @@
 import re
 import shutil
 import subprocess
-import time
 import uuid as pyuuid
 from datetime import datetime
 from logging import Logger
 from pathlib import Path
-from time import sleep
 from typing import Optional, List, Union, Literal, Dict
 
 from samba.netcmd.gpo import get_gpo_dn
@@ -536,16 +534,12 @@ class GPO(GPOModel):
 
             match = re.search(r'\{([0-9A-Fa-f\-]{36})\}', result.stdout.strip())
 
-            time.sleep(10)
-
             if match:
                 uuid = match.group(1)
-                try:
-                    gpo = self.get(f"{{{uuid}}}")
-                    return gpo
-                except Exception as e:
-                    self.logger.warning(f"{e}")
-                    return f"{{{uuid}}}"
+                if Checker.gpo_integrity(uuid):
+                    return self.get(f"{{{uuid}}}")
+
+                return f"{{{uuid}}}"
 
             self.logger.error("Cannot create GPO")
             raise ValueError("Cannot create GPO")
@@ -678,13 +672,14 @@ class GPO(GPOModel):
         Checker.safe(self.user, "User")
         Checker.safe(self.passwd, "Password")
 
+        if not Checker.gpo_integrity(uuid):
+            raise ActionException("The GPO is not available on all domain controllers")
+
         command = ["samba-tool", "gpo", "del", uuid, "-U", self.user]
         try:
             result = subprocess.run(command, input=f"{self.passwd}\n", check=True, text=True, capture_output=True)
 
             match = re.search(r'\{([0-9A-Fa-f\-]{36})\}', result.stdout.strip())
-
-            time.sleep(10)
 
             if not match:
                 self.logger.error("Cannot delete GPO")

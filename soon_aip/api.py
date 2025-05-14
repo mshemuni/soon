@@ -52,7 +52,7 @@ def gpo_dataclass_to_schema(gpo: GPOObject):
 def returnify(status, message, data):
     return status, {
         "timestamp": int(datetime.now().timestamp() * 1000),
-        "SOONStatus": status,
+        "status": status,
         "message": message,
         "data": data
     }

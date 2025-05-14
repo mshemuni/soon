@@ -5,6 +5,7 @@ from ninja import Schema
 
 class ReturnSchema(Schema):
     timestamp: int
+    status: int
     message: str
     data: Any
 

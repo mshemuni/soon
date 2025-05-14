@@ -165,12 +165,12 @@ class Checker:
         """
         Fixer.uuid(uuid)
 
+        lp = param.LoadParm()
+        lp.load_default()
+
         result = {}
         for dc in Checker.get_list_of_controllers():
             ldap_uri = f"ldap://{dc}"
-
-            lp = param.LoadParm()
-            lp.load_default()
 
             samba_database = SamDB(
                 url=ldap_uri,

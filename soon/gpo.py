@@ -10,31 +10,39 @@ from typing import Optional, List, Union, Literal, Dict
 from samba.netcmd.gpo import get_gpo_dn
 
 from soon.errors import DoesNotExistException, AlreadyIsException, FileException, IdentityException, ActionException
-from .models import GPOModel
-from .utils import GPOObject, Checker, Fixer, GPOScripts
 from samba import param
 from samba.auth import system_session
 from samba.samdb import SamDB
 
 import ldb
 
+from .models import GPOModel
+from .utils import GPOObject, Checker, Fixer, GPOScripts
+
 
 class GPO(GPOModel):
-    def __init__(self, user: str, passwd: str, logger: Optional[Logger] = None) -> None:
+    def __init__(self, user: str, passwd: str, machine: Optional[str] = None, logger: Optional[Logger] = None) -> None:
 
         Checker.safe(user, "Username")
         Checker.safe(passwd, "Password")
 
         self.user = user
         self.passwd = passwd
+        self.machine = machine
 
         self.logger = Fixer.logger(logger)
 
         self.lp = param.LoadParm()
         self.lp.load_default()
+
         self.sysvol_root = self.lp.get("path", "sysvol")
 
-        self.sam_database = SamDB(session_info=system_session(), lp=self.lp)
+        try:
+            url = f"ldap://{self.machine}" if self.machine is not None else None
+            self.sam_database = SamDB(url=url, session_info=system_session(), lp=self.lp)
+        except ldb.LdbError as e:
+            raise DoesNotExistException(e)
+
         self.ATTRS = ["displayName", "name", "distinguishedName", "gPCFileSysPath", "whenCreated", "whenChanged",
                       "versionNumber", "gPCUserExtensionNames", "gPCMachineExtensionNames", "gPCFunctionalityVersion"]
         self.CSE = {
@@ -319,7 +327,7 @@ class GPO(GPOModel):
 
         uuid = Fixer.uuid(uuid)
 
-        if not all(self.availability(uuid).values()):
+        if not all(self.conditional_availability(uuid).values()):
             raise ActionException("The GPO is not available on all domain controllers")
 
         if not self.__container_exists(container):
@@ -394,7 +402,7 @@ class GPO(GPOModel):
 
         uuid = Fixer.uuid(uuid)
 
-        if not all(self.availability(uuid).values()):
+        if not all(self.conditional_availability(uuid).values()):
             raise ActionException("The GPO is not available on all domain controllers")
 
         if not self.__container_exists(container):
@@ -486,8 +494,6 @@ class GPO(GPOModel):
         ----------
         name : str
             The uuid of the GPO
-        containers : Optional[str], optional
-            the DN of the container or list of DNs of containers if given. OU=test_ou,DC=example,DC=com
 
         Returns
         -------
@@ -507,8 +513,6 @@ class GPO(GPOModel):
         ----------
         name : str
             The uuid of the GPO
-        containers : Optional[str], optional
-            the DN of the container or list of DNs of containers if given. OU=test_ou,DC=example,DC=com
 
         Returns
         -------
@@ -520,16 +524,16 @@ class GPO(GPOModel):
 
         Checker.safe(name, "Name")
 
-        # gpo_results = self.sam_database.search(
-        #     base=f"CN=Policies,CN=System,{self.dn}",
-        #     scope=ldb.SCOPE_ONELEVEL,
-        #     expression=f"(displayName={name})",
-        #     attrs=self.ATTRS
-        # )
+        gpo_results = self.sam_database.search(
+            base=f"CN=Policies,CN=System,{self.dn}",
+            scope=ldb.SCOPE_ONELEVEL,
+            expression=f"(displayName={name})",
+            attrs=self.ATTRS
+        )
 
-        if any(Checker.gpo_availability_named(name).values()):
-            self.logger.error(f"A GPO might exits with name {name}")
-            raise AlreadyIsException(f"A GPO might exits with name {name}")
+        if gpo_results:
+            self.logger.error(f"A GPO already existing with name {name}")
+            raise AlreadyIsException(f"A GPO already existing with name {name}")
 
         Checker.safe(self.user, "User")
         Checker.safe(self.passwd, "Password")
@@ -562,8 +566,6 @@ class GPO(GPOModel):
         ----------
         name : str
             The uuid of the GPO
-        containers : Optional[str], optional
-            the DN of the container or list of DNs of containers if given. OU=test_ou,DC=example,DC=com
 
         Returns
         -------
@@ -678,7 +680,7 @@ class GPO(GPOModel):
         Checker.safe(self.user, "User")
         Checker.safe(self.passwd, "Password")
 
-        if not all(self.availability(uuid).values()):
+        if not all(self.conditional_availability(uuid).values()):
             raise ActionException("The GPO is not available on all domain controllers")
 
         command = ["samba-tool", "gpo", "del", uuid, "-U", self.user]
@@ -750,7 +752,7 @@ class GPO(GPOModel):
             It can be a Path object of a given script. It also can be the path as string.
             It also can be a command as string. A script file would be automatically created.
         parameters_value: str
-            The parameters to be passwed to the script as it runs.
+            The parameters to be passed to the script as it runs.
 
         Returns
         -------
@@ -760,7 +762,7 @@ class GPO(GPOModel):
 
         uuid = Fixer.uuid(uuid)
 
-        if not all(self.availability(uuid).values()):
+        if not all(self.conditional_availability(uuid).values()):
             raise ActionException("The GPO is not available on all domain controllers")
 
         the_gpo = self.get(uuid)
@@ -792,7 +794,7 @@ class GPO(GPOModel):
 
         uuid = Fixer.uuid(uuid)
 
-        if not all(self.availability(uuid).values()):
+        if not all(self.conditional_availability(uuid).values()):
             raise ActionException("The GPO is not available on all domain controllers")
 
         the_gpo = self.get(uuid)
@@ -830,7 +832,7 @@ class GPO(GPOModel):
 
         uuid = Fixer.uuid(uuid)
 
-        if not all(self.availability(uuid).values()):
+        if not all(self.conditional_availability(uuid).values()):
             raise ActionException("The GPO is not available on all domain controllers")
 
         the_gpo = self.get(uuid)
@@ -850,6 +852,8 @@ class GPO(GPOModel):
         bool :
             True if a GPO is or is not available on all controllers
         """
+        self.logger.info(f"Checking the integrity of a GPO. param({uuid=})")
+
         return Checker.gpo_integrity(uuid)
 
     def availability(self, uuid: str) -> Dict[str, bool]:
@@ -866,4 +870,30 @@ class GPO(GPOModel):
         Dict[str, bool] :
             Availability of a GPO on all domain controllers as a dictionary as {"domain_controller": bool}
         """
+        self.logger.info(f"Checking the availability of a GPO. param({uuid=})")
+
         return Checker.gpo_availability(uuid)
+
+    def conditional_availability(self, uuid: str) -> Dict[str, bool]:
+        """
+        Returns a dictionary of availability of a GPO on all domain controllers if machine is None.
+        Otherwise, availability for only the given machine will be returned
+
+        Parameters
+        ----------
+        uuid : str
+            GUID of a GPO
+
+        Returns
+        -------
+        Dict[str, bool] :
+            Availability of a GPO on all domain controllers as a dictionary as {"domain_controller": bool}
+        """
+        self.logger.info(f"Checking the conditional availability of a GPO. param({uuid=})")
+
+        availability = self.availability(uuid)
+
+        if self.machine is None:
+            return availability
+
+        return {self.machine: availability[self.machine]}

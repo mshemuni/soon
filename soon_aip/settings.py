@@ -29,6 +29,7 @@ def get_env_variable(var_name):
         raise ImproperlyConfigured(f"Set the {var_name} environment variable")
 
 
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -160,6 +161,14 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = "user.CustomUser"
 
-gpo = GPO(get_env_variable("SoonADAdmin"), get_env_variable("SoonADPassword"), logging.getLogger('soon_api'))
+
+soon_admin = get_env_variable("SoonADAdmin")
+soon_password = get_env_variable("SoonADPassword")
+try:
+    machine = get_env_variable("SoonMachine")
+except ImproperlyConfigured:
+    machine = None
+
+gpo = GPO(soon_admin, soon_password, machine=machine ,logger=logging.getLogger('soon_api'))
 
 SITE_HEADER = "Soon"

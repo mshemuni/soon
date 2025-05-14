@@ -57,19 +57,9 @@ def returnify(message, data):
     }
 
 
-@router.get('/', response={200: ReturnSchema, 500: ReturnSchema}, tags=["GPO"],
-            description="Returns all GPOs")
-def get_gpos(request):
-    try:
-        gpos = settings.gpo.get()
-        return 200, returnify("Success", [gpo_dataclass_to_schema(gpo) for gpo in gpos])
-    except Exception as e:
-        return 500, returnify(f"{e}", {})
-
-
-@router.get('/', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
-            tags=["GPO"], description="Returns a GPO")
-def get_gpo(request, uuid: str):
+@router.get('/', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema}, tags=["GPO"],
+            description="Returns a GPO if `uuid` is given, all GPOs if `uuid` is not provided")
+def get_gpos(request, uuid: Optional[str] = None):
     try:
         gpo = settings.gpo.get(uuid)
         return 200, returnify("Success", gpo_dataclass_to_schema(gpo))
@@ -79,6 +69,26 @@ def get_gpo(request, uuid: str):
         return 404, returnify(f"{e}", {})
     except Exception as e:
         return 500, returnify(f"{e}", {})
+
+    # try:
+    #     gpos = settings.gpo.get()
+    #     return 200, returnify("Success", [gpo_dataclass_to_schema(gpo) for gpo in gpos])
+    # except Exception as e:
+    #     return 500, returnify(f"{e}", {})
+
+
+# @router.get('/', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
+#             tags=["GPO"], description="Returns a GPO")
+# def get_gpo(request, uuid: str):
+#     try:
+#         gpo = settings.gpo.get(uuid)
+#         return 200, returnify("Success", gpo_dataclass_to_schema(gpo))
+#     except ValueError as e:
+#         return 400, returnify(f"{e}", {})
+#     except DoesNotExistException as e:
+#         return 404, returnify(f"{e}", {})
+#     except Exception as e:
+#         return 500, returnify(f"{e}", {})
 
 
 @router.get('/scripts',

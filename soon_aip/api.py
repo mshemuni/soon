@@ -57,7 +57,7 @@ def returnify(message, data):
     }
 
 
-@router.get('/', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema}, tags=["GPO"],
+@router.get('', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema}, tags=["GPO"],
             description="Returns a GPO if `uuid` is given, all GPOs if `uuid` is not provided")
 def get_gpos(request, uuid: Optional[str] = None):
     try:
@@ -72,26 +72,6 @@ def get_gpos(request, uuid: Optional[str] = None):
         return 404, returnify(f"{e}", {})
     except Exception as e:
         return 500, returnify(f"{e}", {})
-
-    # try:
-    #     gpos = settings.gpo.get()
-    #     return 200, returnify("Success", [gpo_dataclass_to_schema(gpo) for gpo in gpos])
-    # except Exception as e:
-    #     return 500, returnify(f"{e}", {})
-
-
-# @router.get('/', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
-#             tags=["GPO"], description="Returns a GPO")
-# def get_gpo(request, uuid: str):
-#     try:
-#         gpo = settings.gpo.get(uuid)
-#         return 200, returnify("Success", gpo_dataclass_to_schema(gpo))
-#     except ValueError as e:
-#         return 400, returnify(f"{e}", {})
-#     except DoesNotExistException as e:
-#         return 404, returnify(f"{e}", {})
-#     except Exception as e:
-#         return 500, returnify(f"{e}", {})
 
 
 @router.get('/scripts',
@@ -121,7 +101,7 @@ def health_check(request):
         return 500, returnify(f"{e}", {})
 
 
-@router.post('/', response={201: ReturnSchema, 202: ReturnSchema, 402: ReturnSchema, 500: ReturnSchema}, tags=["GPO"],
+@router.post('', response={201: ReturnSchema, 202: ReturnSchema, 402: ReturnSchema, 500: ReturnSchema}, tags=["GPO"],
              description="Creates a GPO. `201` means a GPO is created and is available over all domain controllers and "
                          "a GPO object is returned. `202` mean a GPO is created but it is not available over all "
                          "domain controllers and a GUID is returned as a string.")
@@ -255,7 +235,7 @@ def script_add(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "
         return 500, returnify(f"{e}", {})
 
 
-@router.delete('/',
+@router.delete('',
                response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
                tags=["GPO"], description="Deletes a GPO")
 def delete_gpo(request, uuid: str):

@@ -61,11 +61,11 @@ def returnify(message, data):
             description="Returns a GPO if `uuid` is given, all GPOs if `uuid` is not provided")
 def get_gpos(request, uuid: Optional[str] = None):
     try:
-        gpo = settings.gpo.get(uuid)
+        gpos = settings.gpo.get(uuid)
         if uuid is None:
             return 200, returnify("Success", [gpo_dataclass_to_schema(gpo) for gpo in gpos])
         else:
-            return 200, returnify("Success", gpo_dataclass_to_schema(gpo))
+            return 200, returnify("Success", gpo_dataclass_to_schema(gpos))
     except ValueError as e:
         return 400, returnify(f"{e}", {})
     except DoesNotExistException as e:

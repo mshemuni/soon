@@ -896,4 +896,4 @@ class GPO(GPOModel):
         if self.machine is None:
             return availability
 
-        return {self.machine: availability[self.machine]}
+        return {self.machine: True}

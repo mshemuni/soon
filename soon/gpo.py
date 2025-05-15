@@ -250,8 +250,9 @@ class GPO(GPOModel):
         except ldb.LdbError as e:
             raise DoesNotExistException(e)
 
-    @reconnect
+
     @property
+    @reconnect
     def dn(self) -> str:
         """
         Returns the DN of the realm. DN=example,DC=com
@@ -265,8 +266,8 @@ class GPO(GPOModel):
 
         return self.sam_database.domain_dn()
 
-    @reconnect
     @property
+    @reconnect
     def realm(self):
         """
         Returns realm. example.com
@@ -532,7 +533,6 @@ class GPO(GPOModel):
 
         return self.samba_create(name)
 
-    @reconnect
     def samba_create(self, name: str) -> Union[GPOObject, str]:
         """
         Creates a GPO using samba-tool and links to the container if given

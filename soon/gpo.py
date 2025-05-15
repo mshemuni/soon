@@ -7,8 +7,9 @@ from logging import Logger
 from pathlib import Path
 from typing import Optional, List, Union, Literal, Dict
 
-from samba.netcmd.gpo import get_gpo_dn
+from functools import wraps
 
+from samba.netcmd.gpo import get_gpo_dn
 from soon.errors import DoesNotExistException, AlreadyIsException, FileException, IdentityException, ActionException
 from samba import param
 from samba.auth import system_session
@@ -19,6 +20,14 @@ import ldb
 from .models import GPOModel
 from .utils import GPOObject, Checker, Fixer, GPOScripts
 
+
+def reconnect(func):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        self.connect()
+        result = func(self, *args, **kwargs)
+        return result
+    return wrapper
 
 class GPO(GPOModel):
     def __init__(self, user: str, passwd: str, machine: Optional[str] = None, logger: Optional[Logger] = None) -> None:
@@ -233,6 +242,15 @@ class GPO(GPOModel):
                     linked_containers.append(str(dn))
         return linked_containers
 
+    def connect(self):
+
+        try:
+            url = f"ldap://{self.machine}" if self.machine is not None else None
+            self.sam_database = SamDB(url=url, session_info=system_session(), lp=self.lp)
+        except ldb.LdbError as e:
+            raise DoesNotExistException(e)
+
+    @reconnect
     @property
     def dn(self) -> str:
         """
@@ -247,6 +265,7 @@ class GPO(GPOModel):
 
         return self.sam_database.domain_dn()
 
+    @reconnect
     @property
     def realm(self):
         """
@@ -263,6 +282,7 @@ class GPO(GPOModel):
         domain_parts = [rdn.split('=')[1] for rdn in dn.split(',') if rdn.lower().startswith('dc=')]
         return '.'.join(domain_parts)
 
+    @reconnect
     def get(self, uuid: Optional[str] = None) -> Union[GPOObject, List[GPOObject]]:
         """
         Returns a GPO or a list of GPOs
@@ -308,6 +328,7 @@ class GPO(GPOModel):
                 for gpo in gpo_results
             ]
 
+    @reconnect
     def link_single(self, uuid: str, container: str) -> None:
         """
         Links a GPO to only one container
@@ -358,6 +379,7 @@ class GPO(GPOModel):
 
         self.__ldap_modify(container, {"gPLink": new_gp_links})
 
+    @reconnect
     def link(self, uuid: str, containers: Union[List[str], str]) -> None:
         """
         Links a GPO to one or more containers
@@ -384,6 +406,7 @@ class GPO(GPOModel):
                 except AlreadyIsException:
                     continue
 
+    @reconnect
     def unlink_single(self, uuid: str, container: str) -> None:
         """
         Unlinks a GPO from only one container
@@ -454,6 +477,7 @@ class GPO(GPOModel):
 
         self.__ldap_modify(container, {"gPLink": gp_links_to_use})
 
+    @reconnect
     def unlink(self, uuid: str, containers: Optional[Union[List[str], str]] = None) -> None:
         """
         Unlinks a GPO from one or more containers
@@ -487,6 +511,7 @@ class GPO(GPOModel):
                 except AlreadyIsException:
                     continue
 
+    @reconnect
     def create(self, name: str) -> Union[GPOObject, str]:
         """
         Creates a GPO and links to the container if given.
@@ -507,6 +532,7 @@ class GPO(GPOModel):
 
         return self.samba_create(name)
 
+    @reconnect
     def samba_create(self, name: str) -> Union[GPOObject, str]:
         """
         Creates a GPO using samba-tool and links to the container if given
@@ -560,6 +586,7 @@ class GPO(GPOModel):
             self.logger.error(f"{e}")
             raise IdentityException(f"{e}")
 
+    @reconnect
     def pseudo_create(self, name: str) -> Union[GPOObject, str]:
         """
         Creates a GPO using ldap and links to the container if given
@@ -643,6 +670,7 @@ class GPO(GPOModel):
 
         return created_gpo
 
+    @reconnect
     def delete(self, uuid: str) -> None:
         """
         Deletes a GPO.
@@ -661,6 +689,7 @@ class GPO(GPOModel):
 
         self.samba_delete(uuid)
 
+    @reconnect
     def samba_delete(self, uuid: str) -> None:
         """
         Deletes a GPO using samba-tool
@@ -699,6 +728,7 @@ class GPO(GPOModel):
         except subprocess.CalledProcessError as e:
             raise IdentityException(f"{e}")
 
+    @reconnect
     def pseudo_delete(self, uuid: str) -> None:
         """
         Deletes a GPO using ldap
@@ -739,6 +769,7 @@ class GPO(GPOModel):
         except Exception as e:
             raise FileException(f"{e}")
 
+    @reconnect
     def add_script(self, uuid: str, kind: Literal["Login", "Logoff", "Startup", "Shutdown"], script: Union[str, Path],
                    parameters_value: str = "") -> None:
 
@@ -775,6 +806,7 @@ class GPO(GPOModel):
         self.__ldap_modify(the_gpo.DN, self.CSE[kind])
         self.__ldap_modify(the_gpo.DN, {"versionNumber": str(the_gpo.version + 1)})
 
+    @reconnect
     def delete_script(self, uuid: str, kind: Literal["Login", "Logoff", "Startup", "Shutdown"],
                       script: Union[str, Path, int]) -> None:
         """
@@ -819,6 +851,7 @@ class GPO(GPOModel):
 
         Fixer.remove_script(user_scripts_ini, kind, the_script)
 
+    @reconnect
     def list_scripts(self, uuid: str) -> GPOScripts:
         """
         Returns a list of scripts belong to the GPO
@@ -845,6 +878,7 @@ class GPO(GPOModel):
         the_gpo = self.get(uuid)
         return Fixer.scripts(the_gpo)
 
+    @reconnect
     def integrity(self, uuid: str) -> bool:
         """
         Returns an integrity of a GPO on all domain controllers. True if is/is not available on all controllers
@@ -863,6 +897,7 @@ class GPO(GPOModel):
 
         return Checker.gpo_integrity(uuid)
 
+    @reconnect
     def availability(self, uuid: str) -> Dict[str, bool]:
         """
         Returns a dictionary of availability of a GPO on all domain controllers

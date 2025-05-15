@@ -891,9 +891,7 @@ class GPO(GPOModel):
         """
         self.logger.info(f"Checking the conditional availability of a GPO. param({uuid=})")
 
-        availability = self.availability(uuid)
-
         if self.machine is None:
-            return availability
+            return self.availability(uuid)
 
         return {self.machine: True}

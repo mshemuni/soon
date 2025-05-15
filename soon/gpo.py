@@ -327,8 +327,9 @@ class GPO(GPOModel):
 
         uuid = Fixer.uuid(uuid)
 
-        if not all(self.conditional_availability(uuid).values()):
-            raise ActionException("The GPO is not available on all domain controllers")
+        if self.machine is None:
+            if not all(self.availability(uuid).values()):
+                raise ActionException("The GPO is not available on all domain controllers")
 
         if not self.__container_exists(container):
             raise DoesNotExistException(f"Container {container} not found")
@@ -402,8 +403,9 @@ class GPO(GPOModel):
 
         uuid = Fixer.uuid(uuid)
 
-        if not all(self.conditional_availability(uuid).values()):
-            raise ActionException("The GPO is not available on all domain controllers")
+        if self.machine is None:
+            if not all(self.availability(uuid).values()):
+                raise ActionException("The GPO is not available on all domain controllers")
 
         if not self.__container_exists(container):
             self.logger.error(f"Container {container} not found")
@@ -680,8 +682,9 @@ class GPO(GPOModel):
         Checker.safe(self.user, "User")
         Checker.safe(self.passwd, "Password")
 
-        if not all(self.conditional_availability(uuid).values()):
-            raise ActionException("The GPO is not available on all domain controllers")
+        if self.machine is None:
+            if not all(self.availability(uuid).values()):
+                raise ActionException("The GPO is not available on all domain controllers")
 
         command = ["samba-tool", "gpo", "del", uuid, "-U", self.user]
         try:
@@ -762,8 +765,9 @@ class GPO(GPOModel):
 
         uuid = Fixer.uuid(uuid)
 
-        if not all(self.conditional_availability(uuid).values()):
-            raise ActionException("The GPO is not available on all domain controllers")
+        if self.machine is None:
+            if not all(self.availability(uuid).values()):
+                raise ActionException("The GPO is not available on all domain controllers")
 
         the_gpo = self.get(uuid)
         the_script = Fixer.script(script)
@@ -794,8 +798,9 @@ class GPO(GPOModel):
 
         uuid = Fixer.uuid(uuid)
 
-        if not all(self.conditional_availability(uuid).values()):
-            raise ActionException("The GPO is not available on all domain controllers")
+        if self.machine is None:
+            if not all(self.availability(uuid).values()):
+                raise ActionException("The GPO is not available on all domain controllers")
 
         the_gpo = self.get(uuid)
         if kind in ["Startup", "Shutdown"]:
@@ -832,8 +837,10 @@ class GPO(GPOModel):
 
         uuid = Fixer.uuid(uuid)
 
-        if not all(self.conditional_availability(uuid).values()):
-            raise ActionException("The GPO is not available on all domain controllers")
+        if self.machine is None:
+            if not all(self.availability(uuid).values()):
+                raise ActionException("The GPO is not available on all domain controllers")
+
 
         the_gpo = self.get(uuid)
         return Fixer.scripts(the_gpo)
@@ -873,25 +880,3 @@ class GPO(GPOModel):
         self.logger.info(f"Checking the availability of a GPO. param({uuid=})")
 
         return Checker.gpo_availability(uuid)
-
-    def conditional_availability(self, uuid: str) -> Dict[str, bool]:
-        """
-        Returns a dictionary of availability of a GPO on all domain controllers if machine is None.
-        Otherwise, availability for only the given machine will be returned
-
-        Parameters
-        ----------
-        uuid : str
-            GUID of a GPO
-
-        Returns
-        -------
-        Dict[str, bool] :
-            Availability of a GPO on all domain controllers as a dictionary as {"domain_controller": bool}
-        """
-        self.logger.info(f"Checking the conditional availability of a GPO. param({uuid=})")
-
-        if self.machine is None:
-            return self.availability(uuid)
-
-        return {self.machine: True}

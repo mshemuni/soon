@@ -9,8 +9,9 @@ from typing import Optional, List, Union, Literal, Dict
 
 from functools import wraps
 
-from samba.netcmd.gpo import get_gpo_dn
 from soon.errors import DoesNotExistException, AlreadyIsException, FileException, IdentityException, ActionException
+
+from samba.netcmd.gpo import get_gpo_dn
 from samba import param
 from samba.auth import system_session
 from samba.samdb import SamDB
@@ -27,7 +28,9 @@ def reconnect(func):
         self.connect()
         result = func(self, *args, **kwargs)
         return result
+
     return wrapper
+
 
 class GPO(GPOModel):
     def __init__(self, user: str, passwd: str, machine: Optional[str] = None, logger: Optional[Logger] = None) -> None:
@@ -249,7 +252,6 @@ class GPO(GPOModel):
             self.sam_database = SamDB(url=url, session_info=system_session(), lp=self.lp)
         except ldb.LdbError as e:
             raise DoesNotExistException(e)
-
 
     @property
     @reconnect
@@ -873,7 +875,6 @@ class GPO(GPOModel):
         if self.machine is None:
             if not all(self.availability(uuid).values()):
                 raise ActionException("The GPO is not available on all domain controllers")
-
 
         the_gpo = self.get(uuid)
         return Fixer.scripts(the_gpo)

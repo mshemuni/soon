@@ -6,6 +6,7 @@ from ninja import Router
 from ninja import File
 from ninja.files import UploadedFile
 
+from soon import GPO
 from soon.errors import DoesNotExistException, AlreadyIsException, FileException, IdentityException, ActionException
 from soon.utils import GPOObject, Script, GPOScripts
 from soon_aip import settings
@@ -62,7 +63,8 @@ def returnify(status, message, data):
             description="Returns a GPO if `uuid` is given, all GPOs if `uuid` is not provided")
 def get_gpos(request, uuid: Optional[str] = None):
     try:
-        gpos = settings.gpo.get(uuid)
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine, logger=settings.logging.getLogger('soon_api'))
+        gpos = gpo.get(uuid)
         if uuid is None:
             return returnify(200, "Success", [gpo_dataclass_to_schema(gpo) for gpo in gpos])
         else:
@@ -81,7 +83,9 @@ def get_gpos(request, uuid: Optional[str] = None):
             description="Returns all scripts belong to a GPO")
 def get_scripts(request, uuid: str):
     try:
-        return returnify(200, "Success", scripts_dataclass_to_schema(settings.gpo.list_scripts(uuid)))
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+        return returnify(200, "Success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
     except ValueError as e:
         return returnify(400, f"{e}", {})
     except DoesNotExistException as e:
@@ -95,7 +99,9 @@ def get_scripts(request, uuid: str):
 @router.post('/health-check', response={200: ReturnSchema, 500: ReturnSchema}, tags=["GPO"], description="Health Check")
 def health_check(request):
     try:
-        _ = settings.gpo.dn
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+        _ = gpo.dn
         staff = request.auth.is_staff
         return returnify(200, "Success", {"is_staff": staff})
     except Exception as e:
@@ -111,7 +117,9 @@ def create_gpo(request, name: str):
         if not request.auth.is_staff:
             return returnify(401, "Must be Staff", {})
 
-        gpo = settings.gpo.create(name)
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+        gpo = gpo.create(name)
 
         if isinstance(gpo, str):
             return returnify(202, "Success", gpo)
@@ -133,8 +141,10 @@ def link_gpo(request, uuid: str, container: str):
         if not request.auth.is_staff:
             return returnify(401, "Must be Staff", {})
 
-        settings.gpo.link_single(uuid, container)
-        return returnify(200, "Success", gpo_dataclass_to_schema(settings.gpo.get(uuid)))
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+        gpo.link_single(uuid, container)
+        return returnify(200, "Success", gpo_dataclass_to_schema(gpo.get(uuid)))
     except ValueError as e:
         return returnify(400, f"{e}", {})
     except DoesNotExistException as e:
@@ -142,7 +152,9 @@ def link_gpo(request, uuid: str, container: str):
     except ActionException as e:
         return returnify(409, f"{e}", {})
     except AlreadyIsException as _:
-        return returnify(200, "Already Exist", gpo_dataclass_to_schema(settings.gpo.get(uuid)))
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+        return returnify(200, "Already Exist", gpo_dataclass_to_schema(gpo.get(uuid)))
     except Exception as e:
         return returnify(500, f"{e}", {})
 
@@ -155,9 +167,10 @@ def unlink_gpo(request, uuid: str, container: Optional[str] = None):
     try:
         if not request.auth.is_staff:
             return returnify(401, "Must be Staff", {})
-
-        settings.gpo.unlink_single(uuid, container)
-        return returnify(200, "Success", gpo_dataclass_to_schema(settings.gpo.get(uuid)))
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+        gpo.unlink_single(uuid, container)
+        return returnify(200, "Success", gpo_dataclass_to_schema(gpo.get(uuid)))
     except ValueError as e:
         return returnify(400, f"{e}", {})
     except DoesNotExistException as e:
@@ -165,7 +178,9 @@ def unlink_gpo(request, uuid: str, container: Optional[str] = None):
     except ActionException as e:
         return returnify(409, f"{e}", {})
     except AlreadyIsException as _:
-        return returnify(200, "Success", gpo_dataclass_to_schema(settings.gpo.get(uuid)))
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+        return returnify(200, "Success", gpo_dataclass_to_schema(gpo.get(uuid)))
     except Exception as e:
         return returnify(500, f"{e}", {})
 
@@ -186,9 +201,12 @@ def script_add(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "
         with open(temp_path, 'w') as temp_file:
             for line in file:
                 temp_file.write(line.decode())
-        settings.gpo.add_script(uuid, kind, temp_path, parameters_value=parameters)
 
-        return returnify(200, "Success", scripts_dataclass_to_schema(settings.gpo.list_scripts(uuid)))
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+        gpo.add_script(uuid, kind, temp_path, parameters_value=parameters)
+
+        return returnify(200, "Success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
     except ValueError as e:
         return returnify(400, f"{e}", {})
     except FileNotFoundError as e:
@@ -202,7 +220,9 @@ def script_add(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "
     except DoesNotExistException as e:
         return returnify(404, f"{e}", {})
     except AlreadyIsException as _:
-        return returnify(200, "success", scripts_dataclass_to_schema(settings.gpo.list_scripts(uuid)))
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+        return returnify(200, "success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
     except Exception as e:
         return returnify(500, f"{e}", {})
 
@@ -215,7 +235,9 @@ def delete_gpo(request, uuid: str):
         if not request.auth.is_staff:
             return returnify(401, "Must be Staff", {})
 
-        settings.gpo.delete(uuid)
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+        gpo.delete(uuid)
         return returnify(200, "GPO Deleted", {})
     except ValueError as e:
         return returnify(400, f"{e}", {})
@@ -240,9 +262,12 @@ def script_delete(request, uuid: str, kind: Literal["Login", "Logoff", "Startup"
             the_script = int(script)
         else:
             the_script = script
-        settings.gpo.delete_script(uuid, kind, the_script)
 
-        return returnify(200, "Success", scripts_dataclass_to_schema(settings.gpo.list_scripts(uuid)))
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+        gpo.delete_script(uuid, kind, the_script)
+
+        return returnify(200, "Success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
     except ValueError as e:
         return returnify(400, f"{e}", {})
     except FileNotFoundError as e:
@@ -256,7 +281,9 @@ def script_delete(request, uuid: str, kind: Literal["Login", "Logoff", "Startup"
     except DoesNotExistException as e:
         return returnify(404, f"{e}", {})
     except AlreadyIsException as _:
-        return returnify(200, "Success", scripts_dataclass_to_schema(settings.gpo.list_scripts(uuid)))
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+        return returnify(200, "Success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
     except Exception as e:
         return returnify(500, f"{e}", {})
 
@@ -266,8 +293,9 @@ def script_delete(request, uuid: str, kind: Literal["Login", "Logoff", "Startup"
             description="Returns GPO's Integrity")
 def get_gpo_integrity(request, uuid: str):
     try:
-
-        return returnify(200, "Success", settings.gpo.integrity(uuid))
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+        return returnify(200, "Success", gpo.integrity(uuid))
     except ValueError as e:
         return returnify(400, f"{e}", {})
     except DoesNotExistException as e:
@@ -281,8 +309,9 @@ def get_gpo_integrity(request, uuid: str):
             description="Returns GPO's Availability")
 def get_gpo_availability(request, uuid: str):
     try:
-
-        return returnify(200, "Success", settings.gpo.availability(uuid))
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+        return returnify(200, "Success", gpo.availability(uuid))
     except ValueError as e:
         return returnify(400, f"{e}", {})
     except DoesNotExistException as e:

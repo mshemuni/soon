@@ -169,6 +169,8 @@ try:
 except ImproperlyConfigured:
     machine = None
 
-gpo = GPO(soon_admin, soon_password, machine=machine ,logger=logging.getLogger('soon_api'))
+
+
+# gpo = GPO(soon_admin, soon_password, machine=machine ,logger=logging.getLogger('soon_api'))
 
 SITE_HEADER = "Soon"

@@ -173,3 +173,4 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 main.py
+tst.py

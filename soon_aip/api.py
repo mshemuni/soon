@@ -66,7 +66,7 @@ def get_gpos(request, uuid: Optional[str] = None):
         gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine, logger=settings.logging.getLogger('soon_api'))
         gpos = gpo.get(uuid)
         if uuid is None:
-            return returnify(200, "Success", [gpo_dataclass_to_schema(gpo) for gpo in gpos])
+            return returnify(200, "Success", [gpo_dataclass_to_schema(the_gpo) for the_gpo in gpos])
         else:
             return returnify(200, "Success", gpo_dataclass_to_schema(gpos))
     except ValueError as e:
@@ -119,12 +119,12 @@ def create_gpo(request, name: str):
 
         gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
                   logger=settings.logging.getLogger('soon_api'))
-        gpo = gpo.create(name)
+        the_gpo = gpo.create(name)
 
-        if isinstance(gpo, str):
-            return returnify(202, "Success", gpo)
+        if isinstance(the_gpo, str):
+            return returnify(202, "Success", the_gpo)
 
-        return returnify(201, "Success", gpo_dataclass_to_schema(gpo))
+        return returnify(201, "Success", gpo_dataclass_to_schema(the_gpo))
 
     except AlreadyIsException as e:
         return returnify(402, f"{e}", {})

@@ -7,7 +7,7 @@ from logging import Logger
 from pathlib import Path
 from typing import Optional, List, Union, Literal, Dict
 
-from functools import wraps
+from samba.credentials import Credentials
 
 from soon.errors import DoesNotExistException, AlreadyIsException, FileException, IdentityException, ActionException
 
@@ -39,8 +39,15 @@ class GPO(GPOModel):
         self.sysvol_root = self.lp.get("path", "sysvol")
 
         try:
-            url = f"ldap://{self.machine}" if self.machine is not None else None
-            self.sam_database = SamDB(url=url, session_info=system_session(), lp=self.lp)
+            if self.machine:
+                creds = Credentials()
+                creds.guess(self.lp)
+                creds.set_username(self.user)
+                creds.set_password(self.passwd)
+                self.sam_database = SamDB(url=f"ldap://{self.machine}", lp=self.lp, credentials=creds)
+            else:
+                self.sam_database = SamDB(session_info=system_session(), lp=self.lp)
+                
         except ldb.LdbError as e:
             raise DoesNotExistException(e)
 
@@ -550,6 +557,9 @@ class GPO(GPOModel):
         Checker.safe(self.passwd, "Password")
 
         command = ["samba-tool", "gpo", "create", name, "-U", self.user]
+
+        if self.machine:
+            command.extend(["-H", f"ldap://{self.machine}"])
         try:
             result = subprocess.run(command, input=f"{self.passwd}\n", check=True, text=True, capture_output=True)
 
@@ -696,6 +706,10 @@ class GPO(GPOModel):
                 raise ActionException("The GPO is not available on all domain controllers")
 
         command = ["samba-tool", "gpo", "del", uuid, "-U", self.user]
+
+        if self.machine:
+            command.extend(["-H", f"ldap://{self.machine}"])
+
         try:
             result = subprocess.run(command, input=f"{self.passwd}\n", check=True, text=True, capture_output=True)
 

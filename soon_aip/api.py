@@ -1,8 +1,8 @@
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Literal, Union
-from ninja import Router
+from typing import Optional, Literal, Union, List
+from ninja import Router, Query
 from ninja import File
 from ninja.files import UploadedFile
 
@@ -63,7 +63,8 @@ def returnify(status, message, data):
             description="Returns a GPO if `uuid` is given, all GPOs if `uuid` is not provided")
 def get_gpos(request, uuid: Optional[str] = None):
     try:
-        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine, logger=settings.logging.getLogger('soon_api'))
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
         gpos = gpo.get(uuid)
         if uuid is None:
             return returnify(200, "Success", [gpo_dataclass_to_schema(the_gpo) for the_gpo in gpos])
@@ -190,7 +191,7 @@ def unlink_gpo(request, uuid: str, container: Optional[str] = None):
               tags=["GPO"],
               description="Adds a script to a GPO, Script kinds can be: `Login`, `Logoff`, `Startup`, `Shutdown`")
 def script_add(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "Shutdown"], parameters: str = "",
-               file: UploadedFile = File(...)):
+               overwrite: bool = False, file: UploadedFile = File(...)):
     try:
         if not request.auth.is_staff:
             return returnify(401, "Must be Staff", {})
@@ -204,7 +205,140 @@ def script_add(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "
 
         gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
                   logger=settings.logging.getLogger('soon_api'))
+
+        scripts = gpo.list_scripts(uuid)
+        for each_script in getattr(scripts, kind.lower()):
+            if each_script.script.name == Path(temp_file.name).name:
+                if overwrite:
+                    gpo.delete_script(uuid, kind, each_script.order)
+                    each_script.script.unlink()
+
         gpo.add_script(uuid, kind, temp_path, parameters_value=parameters)
+
+        return returnify(200, "Success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
+    except ValueError as e:
+        return returnify(400, f"{e}", {})
+    except FileNotFoundError as e:
+        return returnify(404, f"{e}", {})
+    except ActionException as e:
+        return returnify(409, f"{e}", {})
+    except FileException as e:
+        return returnify(500, f"{e}", {})
+    except IdentityException as e:
+        return returnify(500, f"{e}", {})
+    except DoesNotExistException as e:
+        return returnify(404, f"{e}", {})
+    except AlreadyIsException as _:
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+        return returnify(200, "success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
+    except Exception as e:
+        return returnify(500, f"{e}", {})
+
+
+@router.patch('/script/multiple',
+              response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
+              tags=["GPO"],
+              description="Adds a script to a GPO, Script kinds can be a combination of: `Login`, `Logoff`, `Startup`, `Shutdown`")
+def script_add_multiple(request, uuid: str, kinds: List[Literal["Login", "Logoff", "Startup", "Shutdown"]] = Query(...),
+                        parameters: str = "", overwrite: bool = False, file: UploadedFile = File(...)):
+    try:
+        if not request.auth.is_staff:
+            return returnify(401, "Must be Staff", {})
+
+        temp_dir = tempfile.gettempdir()
+        temp_path = Path(temp_dir) / file.name
+
+        with open(temp_path, 'w') as temp_file:
+            for line in file:
+                temp_file.write(line.decode())
+
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+
+        scripts = gpo.list_scripts(uuid)
+        for kind in kinds:
+            for each_script in getattr(scripts, kind.lower()):
+                if each_script.script.name == Path(temp_file.name).name:
+                    if overwrite:
+                        gpo.delete_script(uuid, kind, each_script.order)
+                        each_script.script.unlink()
+
+            gpo.add_script(uuid, kind, temp_path, parameters_value=parameters)
+
+        return returnify(200, "Success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
+    except ValueError as e:
+        return returnify(400, f"{e}", {})
+    except FileNotFoundError as e:
+        return returnify(404, f"{e}", {})
+    except ActionException as e:
+        return returnify(409, f"{e}", {})
+    except FileException as e:
+        return returnify(500, f"{e}", {})
+    except IdentityException as e:
+        return returnify(500, f"{e}", {})
+    except DoesNotExistException as e:
+        return returnify(404, f"{e}", {})
+    except AlreadyIsException as _:
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+        return returnify(200, "success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
+    except Exception as e:
+        return returnify(500, f"{e}", {})
+
+
+@router.patch('/script/text',
+              response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
+              tags=["GPO"],
+              description="Adds a script to a GPO, Script kinds can be: `Login`, `Logoff`, `Startup`, `Shutdown`")
+def script_add_text(request, uuid: str, script: str, kind: Literal["Login", "Logoff", "Startup", "Shutdown"],
+                    parameters: str = ""):
+    try:
+        if not request.auth.is_staff:
+            return returnify(401, "Must be Staff", {})
+
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+
+        gpo.add_script(uuid, kind, script, parameters_value=parameters)
+
+        return returnify(200, "Success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
+    except ValueError as e:
+        return returnify(400, f"{e}", {})
+    except FileNotFoundError as e:
+        return returnify(404, f"{e}", {})
+    except ActionException as e:
+        return returnify(409, f"{e}", {})
+    except FileException as e:
+        return returnify(500, f"{e}", {})
+    except IdentityException as e:
+        return returnify(500, f"{e}", {})
+    except DoesNotExistException as e:
+        return returnify(404, f"{e}", {})
+    except AlreadyIsException as _:
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+        return returnify(200, "success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
+    except Exception as e:
+        return returnify(500, f"{e}", {})
+
+
+@router.patch('/script/text/multiple',
+              response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
+              tags=["GPO"],
+              description="Adds a script to a GPO, Script kinds can be a combination of: `Login`, `Logoff`, `Startup`, `Shutdown`")
+def script_add_multiple_text(request, uuid: str, script: str,
+                        kinds: List[Literal["Login", "Logoff", "Startup", "Shutdown"]] = Query(...),
+                        parameters: str = ""):
+    try:
+        if not request.auth.is_staff:
+            return returnify(401, "Must be Staff", {})
+
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+
+        for kind in kinds:
+            gpo.add_script(uuid, kind, script, parameters_value=parameters)
 
         return returnify(200, "Success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
     except ValueError as e:
@@ -237,6 +371,7 @@ def delete_gpo(request, uuid: str):
 
         gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
                   logger=settings.logging.getLogger('soon_api'))
+
         gpo.delete(uuid)
         return returnify(200, "GPO Deleted", {})
     except ValueError as e:

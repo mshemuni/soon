@@ -19,7 +19,8 @@ router = Router()
 def script_dataclass_to_schema(script: Script):
     return {
         "order": script.order,
-        "script": str(script.script),
+        "script_path": str(script.script),
+        "script_name": str(script.script.name),
         "parameters": script.parameters
     }
 

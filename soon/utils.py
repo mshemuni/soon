@@ -596,7 +596,7 @@ class Fixer:
     @staticmethod
     def remove_script(file_path: Path, section: str, index_to_remove: int) -> None:
         """
-        Returns an script from a GPO
+        removes a script from a GPO
 
         Parameters
         ----------

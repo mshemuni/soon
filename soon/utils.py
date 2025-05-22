@@ -594,7 +594,7 @@ class Fixer:
             raise FileException(f"{e}")
 
     @staticmethod
-    def remove_script(file_path: Path, section: str, index_to_remove: int) -> None:
+    def remove_script(file_path: Path, section: str, index_to_remove: int) -> str:
         """
         removes a script from a GPO
 
@@ -618,12 +618,13 @@ class Fixer:
 
             key_cmd = f"{index_to_remove}CmdLine"
             key_param = f"{index_to_remove}Parameters"
+            script_line = ""
 
             if section in config:
                 if key_cmd in config[section]:
+                    script_line = config[section][key_cmd]
                     del config[section][key_cmd]
                 else:
-
                     raise DoesNotExistException("The script does not exist")
 
                 if key_param in config[section]:
@@ -633,6 +634,11 @@ class Fixer:
 
             with open(file_path, 'w') as configfile:
                 config.write(configfile)
+
+            if script_line:
+                return script_line.split("=")[-1]
+
+            raise ValueError("Couldn't find expected script")
         except Exception as e:
             raise FileException(f"{e}")
 
@@ -661,3 +667,23 @@ class Fixer:
             shutdown=Fixer.script_creator(machine_scripts_ini, "Shutdown")
 
         )
+
+    @staticmethod
+    def empty_directory(path: Union[str, Path]) -> None:
+        """
+        Remove a directory and all its contents.
+
+        Parameters:
+            path (Union[str, Path]): Path to the directory to remove.
+        """
+        dir_path = Path(path)
+        if not dir_path.exists():
+            raise FileNotFoundError(f"No such directory: {dir_path}")
+        if not dir_path.is_dir():
+            raise NotADirectoryError(f"Not a directory: {dir_path}")
+
+        for item in dir_path.iterdir():
+            if item.is_dir():
+                shutil.rmtree(item)
+            else:
+                item.unlink()

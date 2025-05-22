@@ -711,6 +711,11 @@ class GPO(GPOModel):
             command.extend(["-H", f"ldap://{self.machine}"])
 
         try:
+            the_gpo = self.get(uuid)
+
+            Fixer.empty_directory(the_gpo.local_path / "Machine")
+            Fixer.empty_directory(the_gpo.local_path / "User")
+
             result = subprocess.run(command, input=f"{self.passwd}\n", check=True, text=True, capture_output=True)
 
             match = re.search(r'\{([0-9A-Fa-f\-]{36})\}', result.stdout.strip())
@@ -840,7 +845,8 @@ class GPO(GPOModel):
             self.logger.error("The script does not exist")
             raise DoesNotExistException("The script does not exist")
 
-        Fixer.remove_script(user_scripts_ini, kind, the_script)
+        removed_script = Fixer.remove_script(user_scripts_ini, kind, the_script)
+        (user_scripts_ini.parent/ kind / removed_script).unlink()
 
     def list_scripts(self, uuid: str) -> GPOScripts:
         """

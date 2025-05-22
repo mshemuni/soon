@@ -47,7 +47,7 @@ class GPO(GPOModel):
                 self.sam_database = SamDB(url=f"ldap://{self.machine}", lp=self.lp, credentials=creds)
             else:
                 self.sam_database = SamDB(session_info=system_session(), lp=self.lp)
-                
+
         except ldb.LdbError as e:
             raise DoesNotExistException(e)
 

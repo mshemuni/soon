@@ -329,8 +329,8 @@ def script_add_text(request, uuid: str, script: str, kind: Literal["Login", "Log
               tags=["GPO"],
               description="Adds a script to a GPO, Script kinds can be a combination of: `Login`, `Logoff`, `Startup`, `Shutdown`")
 def script_add_multiple_text(request, uuid: str, script: str,
-                        kinds: List[Literal["Login", "Logoff", "Startup", "Shutdown"]] = Query(...),
-                        parameters: str = ""):
+                             kinds: List[Literal["Login", "Logoff", "Startup", "Shutdown"]] = Query(...),
+                             parameters: str = ""):
     try:
         if not request.auth.is_staff:
             return returnify(401, "Must be Staff", {})
@@ -389,7 +389,7 @@ def delete_gpo(request, uuid: str):
                response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
                tags=["GPO"],
                description="Removes a script from a GPO. Deleting a script requires the script name or Order in the script parameter")
-def script_delete(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "Shutdown"], script: Union[str, int]):
+def script_delete(request, uuid: str, script: Union[str, int], kind: Literal["Login", "Logoff", "Startup", "Shutdown"]):
     try:
         if not request.auth.is_staff:
             return returnify(401, "Must be Staff", {})
@@ -402,6 +402,48 @@ def script_delete(request, uuid: str, kind: Literal["Login", "Logoff", "Startup"
         gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
                   logger=settings.logging.getLogger('soon_api'))
         gpo.delete_script(uuid, kind, the_script)
+
+        return returnify(200, "Success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
+    except ValueError as e:
+        return returnify(400, f"{e}", {})
+    except FileNotFoundError as e:
+        return returnify(404, f"{e}", {})
+    except ActionException as e:
+        return returnify(409, f"{e}", {})
+    except FileException as e:
+        return returnify(500, f"{e}", {})
+    except IdentityException as e:
+        return returnify(500, f"{e}", {})
+    except DoesNotExistException as e:
+        return returnify(404, f"{e}", {})
+    except AlreadyIsException as _:
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+        return returnify(200, "Success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
+    except Exception as e:
+        return returnify(500, f"{e}", {})
+
+
+@router.delete('/script/multiple',
+               response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
+               tags=["GPO"],
+               description="Removes scripts from a GPO. Deleting a script requires the script name or Order in the script parameter")
+def script_delete_multiple(request, uuid: str,
+                           script: Union[str, int],
+                           kinds: List[Literal["Login", "Logoff", "Startup", "Shutdown"]] = Query(...)):
+    try:
+        if not request.auth.is_staff:
+            return returnify(401, "Must be Staff", {})
+
+        if script.isnumeric():
+            the_script = int(script)
+        else:
+            the_script = script
+
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+        for kind in kinds:
+            gpo.delete_script(uuid, kind, the_script)
 
         return returnify(200, "Success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
     except ValueError as e:

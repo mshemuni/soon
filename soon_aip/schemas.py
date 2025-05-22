@@ -36,3 +36,7 @@ class GPOSchema(Schema):
     functionality_version: int
     linked_to: List[str]
     # scripts: ScriptsSchema
+
+
+class ScriptAsText(Schema):
+    script: str

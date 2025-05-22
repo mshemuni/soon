@@ -3,7 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Literal, Union, List
 from ninja import Router, Query
-from ninja import File
+from ninja import File, Body
 from ninja.files import UploadedFile
 
 from soon import GPO
@@ -11,7 +11,7 @@ from soon.errors import DoesNotExistException, AlreadyIsException, FileException
 from soon.utils import GPOObject, Script, GPOScripts
 from soon_aip import settings
 
-from soon_aip.schemas import ReturnSchema
+from soon_aip.schemas import ReturnSchema, ScriptAsText
 
 router = Router()
 
@@ -292,7 +292,8 @@ def script_add_multiple(request, uuid: str, kinds: List[Literal["Login", "Logoff
               response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
               tags=["GPO"],
               description="Adds a script to a GPO, Script kinds can be: `Login`, `Logoff`, `Startup`, `Shutdown`")
-def script_add_text(request, uuid: str, script: str, kind: Literal["Login", "Logoff", "Startup", "Shutdown"],
+def script_add_text(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "Shutdown"],
+                    body: ScriptAsText = Body(...),
                     parameters: str = ""):
     try:
         if not request.auth.is_staff:
@@ -301,7 +302,7 @@ def script_add_text(request, uuid: str, script: str, kind: Literal["Login", "Log
         gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
                   logger=settings.logging.getLogger('soon_api'))
 
-        gpo.add_script(uuid, kind, script, parameters_value=parameters)
+        gpo.add_script(uuid, kind, body.script, parameters_value=parameters)
 
         return returnify(200, "Success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
     except ValueError as e:
@@ -328,8 +329,9 @@ def script_add_text(request, uuid: str, script: str, kind: Literal["Login", "Log
               response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
               tags=["GPO"],
               description="Adds a script to a GPO, Script kinds can be a combination of: `Login`, `Logoff`, `Startup`, `Shutdown`")
-def script_add_multiple_text(request, uuid: str, script: str,
+def script_add_multiple_text(request, uuid: str,
                              kinds: List[Literal["Login", "Logoff", "Startup", "Shutdown"]] = Query(...),
+                             body: ScriptAsText = Body(...),
                              parameters: str = ""):
     try:
         if not request.auth.is_staff:
@@ -339,7 +341,7 @@ def script_add_multiple_text(request, uuid: str, script: str,
                   logger=settings.logging.getLogger('soon_api'))
 
         for kind in kinds:
-            gpo.add_script(uuid, kind, script, parameters_value=parameters)
+            gpo.add_script(uuid, kind, body.script, parameters_value=parameters)
 
         return returnify(200, "Success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
     except ValueError as e:

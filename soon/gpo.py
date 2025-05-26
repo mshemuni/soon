@@ -7,10 +7,9 @@ from logging import Logger
 from pathlib import Path
 from typing import Optional, List, Union, Literal, Dict
 
-from samba.credentials import Credentials
-
 from soon.errors import DoesNotExistException, AlreadyIsException, FileException, IdentityException, ActionException
 
+from samba.credentials import Credentials
 from samba.netcmd.gpo import get_gpo_dn
 from samba import param
 from samba.auth import system_session
@@ -908,3 +907,23 @@ class GPO(GPOModel):
         self.logger.info(f"Checking the availability of a GPO. param({uuid=})")
 
         return Checker.gpo_availability(uuid)
+
+    def get_acl(self, uuid):
+        the_gpo = self.get(uuid)
+        # samba-tool dsacl get --objectdn="CN={F2B16BD5-050F-4396-A61D-490DA39B7501},CN=Policies,CN=System,DC=dc,DC=prd"
+
+        command = ['samba-tool', 'dsacl', 'get', f'--objectdn={the_gpo.DN}', '-U', 'Administrator']
+
+        if self.machine:
+            command.extend(["-H", f"ldap://{self.machine}"])
+
+        try:
+
+            result = subprocess.run(command, input=f"{self.passwd}\n", check=True, text=True, capture_output=True)
+
+            sddl_str = result.stdout.strip()
+            return sddl_str
+
+
+        except subprocess.CalledProcessError as e:
+            raise IdentityException(f"{e}")

@@ -687,3 +687,30 @@ class Fixer:
                 shutil.rmtree(item)
             else:
                 item.unlink()
+
+        @staticmethod
+        def parse_sddl(sddl: str) -> Dict[str, List[Dict[str, str]]]:
+            def parse_ace(ace: str) -> Dict[str, str]:
+                parts = ace.strip("()").split(";")
+                return {
+                    "ace_type": parts[0],
+                    "ace_flags": parts[1],
+                    "rights": parts[2],
+                    "object_guid": parts[3],
+                    "inherit_object_guid": parts[4],
+                    "sid": parts[5],
+                }
+
+            # Split SDDL sections
+            parts = re.split(r'([OGDS]:)', sddl)
+            structured = {}
+            current = None
+            for part in parts:
+                if part in ['O:', 'G:', 'D:', 'S:']:
+                    current = part[0]
+                    structured[current] = []
+                elif current:
+                    # Extract ACEs
+                    aces = re.findall(r'\([^\)]+\)', part)
+                    structured[current].extend([parse_ace(ace) for ace in aces])
+            return structured

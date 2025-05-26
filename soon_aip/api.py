@@ -292,7 +292,9 @@ def script_add_multiple(request, uuid: str, kinds: List[Literal["Login", "Logoff
               response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
               tags=["GPO"],
               description="Adds a script to a GPO, Script kinds can be: `Login`, `Logoff`, `Startup`, `Shutdown`")
-def script_add_text(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "Shutdown"],
+def script_add_text(request, uuid: str,
+                    kind: Literal["Login", "Logoff", "Startup", "Shutdown"],
+                    file_name: Optional[str] = None,
                     body: ScriptAsText = Body(...),
                     parameters: str = ""):
     try:
@@ -302,7 +304,16 @@ def script_add_text(request, uuid: str, kind: Literal["Login", "Logoff", "Startu
         gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
                   logger=settings.logging.getLogger('soon_api'))
 
-        gpo.add_script(uuid, kind, body.script, parameters_value=parameters)
+        if file_name:
+            temp_dir = tempfile.gettempdir()
+            the_script = Path(temp_dir) / file_name
+
+            with open(the_script, 'w') as temp_file:
+                temp_file.write(body.script)
+        else:
+            the_script = body.script
+
+        gpo.add_script(uuid, kind, the_script, parameters_value=parameters)
 
         return returnify(200, "Success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
     except ValueError as e:
@@ -330,6 +341,7 @@ def script_add_text(request, uuid: str, kind: Literal["Login", "Logoff", "Startu
               tags=["GPO"],
               description="Adds a script to a GPO, Script kinds can be a combination of: `Login`, `Logoff`, `Startup`, `Shutdown`")
 def script_add_multiple_text(request, uuid: str,
+                             file_name: Optional[str] = None,
                              kinds: List[Literal["Login", "Logoff", "Startup", "Shutdown"]] = Query(...),
                              body: ScriptAsText = Body(...),
                              parameters: str = ""):
@@ -340,8 +352,83 @@ def script_add_multiple_text(request, uuid: str,
         gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
                   logger=settings.logging.getLogger('soon_api'))
 
+        if file_name:
+            temp_dir = tempfile.gettempdir()
+            the_script = Path(temp_dir) / file_name
+
+            with open(the_script, 'w') as temp_file:
+                temp_file.write(body.script)
+        else:
+            the_script = body.script
+
         for kind in kinds:
-            gpo.add_script(uuid, kind, body.script, parameters_value=parameters)
+            gpo.add_script(uuid, kind, the_script, parameters_value=parameters)
+
+        return returnify(200, "Success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
+    except ValueError as e:
+        return returnify(400, f"{e}", {})
+    except FileNotFoundError as e:
+        return returnify(404, f"{e}", {})
+    except ActionException as e:
+        return returnify(409, f"{e}", {})
+    except FileException as e:
+        return returnify(500, f"{e}", {})
+    except IdentityException as e:
+        return returnify(500, f"{e}", {})
+    except DoesNotExistException as e:
+        return returnify(404, f"{e}", {})
+    except AlreadyIsException as _:
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+        return returnify(200, "success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
+    except Exception as e:
+        return returnify(500, f"{e}", {})
+
+
+@router.patch('/script/replace/text/multiple',
+              response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
+              tags=["GPO"],
+              description="Replaces a script to a GPO, Script kinds can be a combination of: `Login`, `Logoff`, `Startup`, `Shutdown`")
+def script_replace_multiple_text(request, uuid: str,
+                                 file_name: str,
+                                 kinds: List[Literal["Login", "Logoff", "Startup", "Shutdown"]] = Query(...),
+                                 body: ScriptAsText = Body(...),
+                                 parameters: str = ""):
+    try:
+        if not request.auth.is_staff:
+            return returnify(401, "Must be Staff", {})
+
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+
+        scripts = gpo.list_scripts(uuid)
+
+        script_list = []
+        for kind in ['Login', 'Logoff', 'Startup', 'Shutdown']:
+            script_list.extend(
+                [[each, kind] for each in getattr(scripts, kind.lower()) if each.script.name == file_name])
+            # script_list = [[each, "Startup"] for each in scripts.startup if each.script.name == script]
+            # script_list.appe([[each, "Shutdown"] for each in scripts.shutdown if each.script.name == script])
+            # script_list.extend([[each, "Login"] for each in scripts.login if each.script.name == script])
+            # script_list.extend([[each, "Logoff"] for each in scripts.logoff if each.script.name == script])
+
+        if len(script_list) == 0:
+            return returnify(404, "Script does not exist", {})
+
+        for each_script in script_list:
+            gpo.delete_script(uuid, each_script[1], each_script[0].order)
+
+        if file_name:
+            temp_dir = tempfile.gettempdir()
+            the_script = Path(temp_dir) / file_name
+
+            with open(the_script, 'w') as temp_file:
+                temp_file.write(body.script)
+        else:
+            the_script = body.script
+
+        for kind in kinds:
+            gpo.add_script(uuid, kind, the_script, parameters_value=parameters)
 
         return returnify(200, "Success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
     except ValueError as e:

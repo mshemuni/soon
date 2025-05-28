@@ -69,7 +69,8 @@ def get_gpos(request, uuid: Optional[str] = None):
                   logger=settings.logging.getLogger('soon_api'))
         gpos = gpo.get(uuid)
         if uuid is None:
-            return returnify(200, "Success", [gpo_dataclass_to_schema(the_gpo, gpo.get_allowed(the_gpo.CN)) for the_gpo in gpos])
+            return returnify(200, "Success",
+                             [gpo_dataclass_to_schema(the_gpo, gpo.get_allowed(the_gpo.CN)) for the_gpo in gpos])
         else:
             return returnify(200, "Success", gpo_dataclass_to_schema(gpos, gpo.get_allowed(uuid)))
     except ValueError as e:
@@ -99,9 +100,13 @@ def get_scripts(request, uuid: str):
         return returnify(500, f"{e}", {})
 
 
-@router.post('/health-check', response={200: ReturnSchema, 500: ReturnSchema}, tags=["GPO"], description="Health Check")
+@router.post('/health-check', response={200: ReturnSchema, 401: ReturnSchema, 500: ReturnSchema}, tags=["GPO"],
+             description="Health Check")
 def health_check(request):
     try:
+        if not request.auth.is_staff:
+            return returnify(401, "Must be Staff", {})
+
         gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
                   logger=settings.logging.getLogger('soon_api'))
         _ = gpo.dn
@@ -111,7 +116,9 @@ def health_check(request):
         return returnify(500, f"{e}", {})
 
 
-@router.post('', response={201: ReturnSchema, 202: ReturnSchema, 402: ReturnSchema, 500: ReturnSchema}, tags=["GPO"],
+@router.post('',
+             response={201: ReturnSchema, 202: ReturnSchema, 401: ReturnSchema, 402: ReturnSchema, 500: ReturnSchema},
+             tags=["GPO"],
              description="Creates a GPO. `201` means a GPO is created and is available over all domain controllers and "
                          "a GPO object is returned. `202` mean a GPO is created but it is not available over all "
                          "domain controllers and a GUID is returned as a string.")
@@ -136,7 +143,8 @@ def create_gpo(request, name: str):
 
 
 @router.patch('/link',
-              response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
+              response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema,
+                        500: ReturnSchema},
               tags=["GPO"],
               description="Links a GPO to a container")
 def link_gpo(request, uuid: str, container: str):
@@ -163,13 +171,15 @@ def link_gpo(request, uuid: str, container: str):
 
 
 @router.patch('/unlink',
-              response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
+              response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema,
+                        500: ReturnSchema},
               tags=["GPO"],
               description="Unlinks a GPO from a container. If container not given it will unlink from all containers")
 def unlink_gpo(request, uuid: str, container: Optional[str] = None):
     try:
         if not request.auth.is_staff:
             return returnify(401, "Must be Staff", {})
+
         gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
                   logger=settings.logging.getLogger('soon_api'))
         gpo.unlink_single(uuid, container)
@@ -189,7 +199,8 @@ def unlink_gpo(request, uuid: str, container: Optional[str] = None):
 
 
 @router.patch('/script',
-              response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
+              response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema,
+                        500: ReturnSchema},
               tags=["GPO"],
               description="Adds a script to a GPO, Script kinds can be: `Login`, `Logoff`, `Startup`, `Shutdown`")
 def script_add(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "Shutdown"], parameters: str = "",
@@ -239,7 +250,8 @@ def script_add(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "
 
 
 @router.patch('/script/multiple',
-              response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
+              response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema,
+                        500: ReturnSchema},
               tags=["GPO"],
               description="Adds a script to a GPO, Script kinds can be a combination of: `Login`, `Logoff`, `Startup`, `Shutdown`")
 def script_add_multiple(request, uuid: str, kinds: List[Literal["Login", "Logoff", "Startup", "Shutdown"]] = Query(...),
@@ -290,7 +302,8 @@ def script_add_multiple(request, uuid: str, kinds: List[Literal["Login", "Logoff
 
 
 @router.patch('/script/text',
-              response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
+              response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema,
+                        500: ReturnSchema},
               tags=["GPO"],
               description="Adds a script to a GPO, Script kinds can be: `Login`, `Logoff`, `Startup`, `Shutdown`")
 def script_add_text(request, uuid: str,
@@ -338,7 +351,8 @@ def script_add_text(request, uuid: str,
 
 
 @router.patch('/script/text/multiple',
-              response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
+              response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema,
+                        500: ReturnSchema},
               tags=["GPO"],
               description="Adds a script to a GPO, Script kinds can be a combination of: `Login`, `Logoff`, `Startup`, `Shutdown`")
 def script_add_multiple_text(request, uuid: str,
@@ -387,7 +401,8 @@ def script_add_multiple_text(request, uuid: str,
 
 
 @router.patch('/script/replace/text/multiple',
-              response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
+              response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema,
+                        500: ReturnSchema},
               tags=["GPO"],
               description="Replaces a script to a GPO, Script kinds can be a combination of: `Login`, `Logoff`, `Startup`, `Shutdown`")
 def script_replace_multiple_text(request, uuid: str,
@@ -449,7 +464,8 @@ def script_replace_multiple_text(request, uuid: str,
 
 
 @router.delete('',
-               response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
+               response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema,
+                         500: ReturnSchema},
                tags=["GPO"], description="Deletes a GPO")
 def delete_gpo(request, uuid: str):
     try:
@@ -472,7 +488,8 @@ def delete_gpo(request, uuid: str):
 
 
 @router.delete('/script',
-               response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
+               response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema,
+                         500: ReturnSchema},
                tags=["GPO"],
                description="Removes a script from a GPO. Deleting a script requires the script name or Order in the script parameter")
 def script_delete(request, uuid: str, script: Union[str, int], kind: Literal["Login", "Logoff", "Startup", "Shutdown"]):
@@ -511,7 +528,8 @@ def script_delete(request, uuid: str, script: Union[str, int], kind: Literal["Lo
 
 
 @router.delete('/script/multiple',
-               response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
+               response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema,
+                         500: ReturnSchema},
                tags=["GPO"],
                description="Removes scripts from a GPO. Deleting a script requires the script name or Order in the script parameter")
 def script_delete_multiple(request, uuid: str,
@@ -602,11 +620,15 @@ def get_gpo_allowed(request, uuid: str):
         return returnify(500, f"{e}", {})
 
 
-@router.patch('/allowed', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
-            tags=["GPO"],
-            description="Adds allowed User/Group to GPO")
+@router.patch('/allowed',
+              response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
+              tags=["GPO"],
+              description="Adds allowed User/Group to GPO")
 def gpo_add_allowed(request, uuid: str, trustee: str):
     try:
+        if not request.auth.is_staff:
+            return returnify(401, "Must be Staff", {})
+
         gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
                   logger=settings.logging.getLogger('soon_api'))
         gpo.add_allowed(uuid, trustee)
@@ -621,11 +643,15 @@ def gpo_add_allowed(request, uuid: str, trustee: str):
         return returnify(500, f"{e}", {})
 
 
-@router.delete('/allowed', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
-            tags=["GPO"],
-            description="Removes allowed User/Group from GPO")
+@router.delete('/allowed',
+               response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
+               tags=["GPO"],
+               description="Removes allowed User/Group from GPO")
 def gpo_remove_allowed(request, uuid: str, trustee: str):
     try:
+        if not request.auth.is_staff:
+            return returnify(401, "Must be Staff", {})
+
         gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
                   logger=settings.logging.getLogger('soon_api'))
         gpo.remove_allowed(uuid, trustee)

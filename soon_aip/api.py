@@ -34,7 +34,7 @@ def scripts_dataclass_to_schema(scripts: GPOScripts):
     }
 
 
-def gpo_dataclass_to_schema(gpo: GPOObject):
+def gpo_dataclass_to_schema(gpo: GPOObject, security_filter):
     return {
         "created_at": gpo.created_at,
         "updated_at": gpo.updated_at,
@@ -47,7 +47,8 @@ def gpo_dataclass_to_schema(gpo: GPOObject):
         "user_extension_names": gpo.user_extension_names,
         "machine_extension_names": gpo.machine_extension_names,
         "functionality_version": gpo.functionality_version,
-        "linked_to": gpo.linked_to
+        "linked_to": gpo.linked_to,
+        "filter": security_filter
     }
 
 
@@ -68,9 +69,9 @@ def get_gpos(request, uuid: Optional[str] = None):
                   logger=settings.logging.getLogger('soon_api'))
         gpos = gpo.get(uuid)
         if uuid is None:
-            return returnify(200, "Success", [gpo_dataclass_to_schema(the_gpo) for the_gpo in gpos])
+            return returnify(200, "Success", [gpo_dataclass_to_schema(the_gpo, gpo.get_allowed(the_gpo.CN)) for the_gpo in gpos])
         else:
-            return returnify(200, "Success", gpo_dataclass_to_schema(gpos))
+            return returnify(200, "Success", gpo_dataclass_to_schema(gpos, gpo.get_allowed(uuid)))
     except ValueError as e:
         return returnify(400, f"{e}", {})
     except DoesNotExistException as e:
@@ -407,10 +408,6 @@ def script_replace_multiple_text(request, uuid: str,
         for kind in ['Login', 'Logoff', 'Startup', 'Shutdown']:
             script_list.extend(
                 [[each, kind] for each in getattr(scripts, kind.lower()) if each.script.name == file_name])
-            # script_list = [[each, "Startup"] for each in scripts.startup if each.script.name == script]
-            # script_list.appe([[each, "Shutdown"] for each in scripts.shutdown if each.script.name == script])
-            # script_list.extend([[each, "Login"] for each in scripts.login if each.script.name == script])
-            # script_list.extend([[each, "Logoff"] for each in scripts.logoff if each.script.name == script])
 
         if len(script_list) == 0:
             return returnify(404, "Script does not exist", {})
@@ -583,5 +580,61 @@ def get_gpo_availability(request, uuid: str):
         return returnify(400, f"{e}", {})
     except DoesNotExistException as e:
         return returnify(404, f"{e}", {})
+    except Exception as e:
+        return returnify(500, f"{e}", {})
+
+
+@router.get('/allowed', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
+            tags=["GPO"],
+            description="Returns GPO's allowed Users/Groups")
+def get_gpo_allowed(request, uuid: str):
+    try:
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+        return returnify(200, "Success", gpo.get_allowed(uuid))
+    except ValueError as e:
+        return returnify(400, f"{e}", {})
+    except DoesNotExistException as e:
+        return returnify(404, f"{e}", {})
+    except IdentityException as e:
+        return returnify(500, f"{e}", {})
+    except Exception as e:
+        return returnify(500, f"{e}", {})
+
+
+@router.patch('/allowed', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
+            tags=["GPO"],
+            description="Adds allowed User/Group to GPO")
+def gpo_add_allowed(request, uuid: str, trustee: str):
+    try:
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+        gpo.add_allowed(uuid, trustee)
+        return returnify(200, "Success", gpo.get_allowed(uuid))
+    except ValueError as e:
+        return returnify(400, f"{e}", {})
+    except DoesNotExistException as e:
+        return returnify(404, f"{e}", {})
+    except IdentityException as e:
+        return returnify(500, f"{e}", {})
+    except Exception as e:
+        return returnify(500, f"{e}", {})
+
+
+@router.delete('/allowed', response={200: ReturnSchema, 400: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
+            tags=["GPO"],
+            description="Removes allowed User/Group from GPO")
+def gpo_remove_allowed(request, uuid: str, trustee: str):
+    try:
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+        gpo.remove_allowed(uuid, trustee)
+        return returnify(200, "Success", gpo.get_allowed(uuid))
+    except ValueError as e:
+        return returnify(400, f"{e}", {})
+    except DoesNotExistException as e:
+        return returnify(404, f"{e}", {})
+    except IdentityException as e:
+        return returnify(500, f"{e}", {})
     except Exception as e:
         return returnify(500, f"{e}", {})

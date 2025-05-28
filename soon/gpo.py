@@ -20,6 +20,7 @@ import ldb
 from .models import GPOModel
 from .utils import GPOObject, Checker, Fixer, GPOScripts
 
+
 class GPO(GPOModel):
     def __init__(self, user: str, passwd: str, machine: Optional[str] = None, logger: Optional[Logger] = None) -> None:
 
@@ -117,7 +118,7 @@ class GPO(GPOModel):
             user_extension_names=str(gpo.get("gPCUserExtensionNames", ["<No DN>"])[0]),
             machine_extension_names=str(gpo.get("gPCMachineExtensionNames", ["<No DN>"])[0]),
             functionality_version=int(gpo.get("gPCFunctionalityVersion", ["<No DN>"])[0]),
-            linked_to=self.__linked_to(str(gpo.get("name", ["<No CN>"])[0])),
+            linked_to=self.__linked_to(str(gpo.get("name", ["<No CN>"])[0]))
         )
 
     def __ldap_add(self, dn: str, attributes: Dict[str, str]) -> None:
@@ -845,7 +846,7 @@ class GPO(GPOModel):
             raise DoesNotExistException("The script does not exist")
 
         removed_script = Fixer.remove_script(user_scripts_ini, kind, the_script)
-        (user_scripts_ini.parent/ kind / removed_script).unlink()
+        (user_scripts_ini.parent / kind / removed_script).unlink()
 
     def list_scripts(self, uuid: str) -> GPOScripts:
         """
@@ -908,7 +909,147 @@ class GPO(GPOModel):
 
         return Checker.gpo_availability(uuid)
 
-    def get_acl(self, uuid):
+    def remove_allowed(self, uuid: str, trustee: str):
+        """
+        Removes required dsacls so permissions are taken for a given user/group
+
+        Parameters
+        ----------
+        uuid : str
+            GUID of a GPO
+        trustee : str
+            sid or name of a user/group
+
+        Returns
+        -------
+        None
+        """
+        the_gpo = self.get(uuid)
+
+        if trustee == "AU":
+            sid = trustee
+        else:
+            if Checker.is_sid(trustee):
+                sid = trustee
+            else:
+                results = self.sam_database.search(
+                    base=self.dn,
+                    scope=ldb.SCOPE_SUBTREE,
+                    expression=f"(name={trustee})",
+                    attrs=["objectSid"]
+                )
+
+                if not results:
+                    raise DoesNotExistException(f"No user ot group with name of {trustee} exist")
+
+                sid = Fixer.decode_sid(results[0]["objectSid"][0])
+
+        a_string = f"(OA;CI;CR;edacfd8f-ffb3-11d1-b41d-00a0c968f939;;{sid})"
+        oa_string = f"(A;CI;LCRPRC;;;{sid})"
+
+        try:
+
+            for each_string in [a_string, oa_string]:
+
+                command = ['samba-tool', 'dsacl', 'delete', f'--objectdn={the_gpo.DN}', f'--sddl={each_string}', '-U',
+                           'Administrator']
+
+                if self.machine:
+                    command.extend(["-H", f"ldap://{self.machine}"])
+
+                result = subprocess.run(command, input=f"{self.passwd}\n", check=True, text=True, capture_output=True)
+                result_str = result.stdout.strip()
+
+                if "already" in result_str:
+                    self.logger.error(f"WARNING: {trustee} was already found in the current security descriptor")
+                    raise AlreadyIsException(f"WARNING: {trustee} was already found in the current security descriptor")
+
+                new = result_str.split("new")[-1]
+                if each_string in new:
+                    self.logger.error("Cannot set dsacl")
+                    raise ValueError("Cannot set dsacl")
+
+        except subprocess.CalledProcessError as e:
+            raise IdentityException(f"{e}")
+
+    def add_allowed(self, uuid: str, trustee: str):
+        """
+        Removes required dsacls so permissions are given for a given user/group
+
+        Parameters
+        ----------
+        uuid : str
+            GUID of a GPO
+        trustee : str
+            sid or name of a user/group
+
+        Returns
+        -------
+        None
+        """
+
+        the_gpo = self.get(uuid)
+
+        if trustee == "AU":
+            sid = trustee
+        else:
+            if Checker.is_sid(trustee):
+                sid = trustee
+            else:
+                results = self.sam_database.search(
+                    base=self.dn,
+                    scope=ldb.SCOPE_SUBTREE,
+                    expression=f"(name={trustee})",
+                    attrs=["objectSid"]
+                )
+
+                if not results:
+                    raise DoesNotExistException(f"No user ot group with name of {trustee} exist")
+
+                sid = Fixer.decode_sid(results[0]["objectSid"][0])
+
+        a_string = f"(OA;CI;CR;edacfd8f-ffb3-11d1-b41d-00a0c968f939;;{sid})"
+        oa_string = f"(A;CI;LCRPRC;;;{sid})"
+
+        try:
+
+            for each_string in [a_string, oa_string]:
+
+                command = ['samba-tool', 'dsacl', 'set', f'--objectdn={the_gpo.DN}', f'--sddl={each_string}', '-U',
+                           'Administrator']
+
+                if self.machine:
+                    command.extend(["-H", f"ldap://{self.machine}"])
+
+                result = subprocess.run(command, input=f"{self.passwd}\n", check=True, text=True, capture_output=True)
+                result_str = result.stdout.strip()
+
+                if "already" in result_str:
+                    self.logger.error(f"WARNING: {trustee} was already found in the current security descriptor")
+                    raise AlreadyIsException(f"WARNING: {trustee} was already found in the current security descriptor")
+
+                new = result_str.split("new")[-1]
+                if not each_string in new:
+                    self.logger.error("Cannot set dsacl")
+                    raise ValueError("Cannot set dsacl")
+
+        except subprocess.CalledProcessError as e:
+            raise IdentityException(f"{e}")
+
+    def get_allowed(self, uuid: str) -> List[str]:
+        """
+        Returns a list of user/group in dsacl
+
+        Parameters
+        ----------
+        uuid : str
+            GUID of a GPO
+
+        Returns
+        -------
+        List[str]
+            List of user/group names
+        """
         the_gpo = self.get(uuid)
         # samba-tool dsacl get --objectdn="CN={F2B16BD5-050F-4396-A61D-490DA39B7501},CN=Policies,CN=System,DC=dc,DC=prd"
 
@@ -922,8 +1063,46 @@ class GPO(GPOModel):
             result = subprocess.run(command, input=f"{self.passwd}\n", check=True, text=True, capture_output=True)
 
             sddl_str = result.stdout.strip()
-            return sddl_str
 
+            return self.parse_allowed(sddl_str.split("\n")[-1])
 
         except subprocess.CalledProcessError as e:
             raise IdentityException(f"{e}")
+
+    def parse_allowed(self, string: str):
+        """
+        Parses sids and returns names of the given sid in question
+
+        Parameters
+        ----------
+        string : str
+            sid of an object
+
+        Returns
+        -------
+        List[str]
+            List of names
+
+
+        """
+        contents = re.findall(r'\(([^)]*)\)', string)
+        authorized = {}
+        for content in contents:
+            typ, *_, sid = content.split(";")
+            if not "A" in typ.upper():
+                continue
+            if sid not in authorized.keys():
+                if Checker.is_sid(sid):
+                    results = self.sam_database.search(
+                        base=self.dn,
+                        scope=ldb.SCOPE_SUBTREE,
+                        expression=f"(objectSid={content.split(';')[-1]})",
+                        attrs=["name"]
+                    )
+                    if results:
+                        authorized[sid] = results[0]["name"][0].decode()
+                else:
+                    if sid == "AU":
+                        authorized["S-1-5-11"] = sid
+
+        return list(authorized.values())

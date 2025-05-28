@@ -2,6 +2,7 @@ import configparser
 import os
 import stat
 import shutil
+import struct
 import tempfile
 import uuid
 from dataclasses import dataclass, field
@@ -213,6 +214,11 @@ class Checker:
 
         gpo_availability = Checker.gpo_availability(uuid)
         return all(gpo_availability.values()) or not any(gpo_availability.values())
+
+    @staticmethod
+    def is_sid(string: str) -> bool:
+        pattern = r"^S-\d+(-\d+)+$"
+        return bool(re.match(pattern, string))
 
 
 class Fixer:
@@ -714,3 +720,20 @@ class Fixer:
                     aces = re.findall(r'\([^\)]+\)', part)
                     structured[current].extend([parse_ace(ace) for ace in aces])
             return structured
+
+    @staticmethod
+    def decode_sid(sid_bytes: bytes) -> str:
+        # Revision (1 byte) + SubAuthority Count (1 byte) + Identifier Authority (6 bytes)
+        revision = sid_bytes[0]
+        sub_authority_count = sid_bytes[1]
+        identifier_authority = int.from_bytes(sid_bytes[2:8], byteorder='big')
+
+        # SubAuthorities (4 bytes each)
+        sub_authorities = [
+            struct.unpack('<I', sid_bytes[8 + i * 4:12 + i * 4])[0]
+            for i in range(sub_authority_count)
+        ]
+
+        # Format SID string
+        sid_str = f"S-{revision}-{identifier_authority}" + ''.join(f"-{sa}" for sa in sub_authorities)
+        return sid_str

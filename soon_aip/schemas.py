@@ -40,3 +40,9 @@ class GPOSchema(Schema):
 
 class ScriptAsText(Schema):
     script: str
+
+class TrusteeSchema(Schema):
+    trustee: str
+
+class TrusteesSchema(Schema):
+    trustees: List[str]

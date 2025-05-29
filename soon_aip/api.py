@@ -11,7 +11,7 @@ from soon.errors import DoesNotExistException, AlreadyIsException, FileException
 from soon.utils import GPOObject, Script, GPOScripts
 from soon_aip import settings
 
-from soon_aip.schemas import ReturnSchema, ScriptAsText
+from soon_aip.schemas import ReturnSchema, ScriptAsText, TrusteeSchema, TrusteesSchema
 
 router = Router()
 
@@ -34,7 +34,7 @@ def scripts_dataclass_to_schema(scripts: GPOScripts):
     }
 
 
-def gpo_dataclass_to_schema(gpo: GPOObject, security_filter):
+def gpo_dataclass_to_schema(gpo: GPOObject):
     return {
         "created_at": gpo.created_at,
         "updated_at": gpo.updated_at,
@@ -48,7 +48,6 @@ def gpo_dataclass_to_schema(gpo: GPOObject, security_filter):
         "machine_extension_names": gpo.machine_extension_names,
         "functionality_version": gpo.functionality_version,
         "linked_to": gpo.linked_to,
-        "filter": security_filter
     }
 
 
@@ -70,9 +69,9 @@ def get_gpos(request, uuid: Optional[str] = None):
         gpos = gpo.get(uuid)
         if uuid is None:
             return returnify(200, "Success",
-                             [gpo_dataclass_to_schema(the_gpo, gpo.get_allowed(the_gpo.CN)) for the_gpo in gpos])
+                             [gpo_dataclass_to_schema(the_gpo) for the_gpo in gpos])
         else:
-            return returnify(200, "Success", gpo_dataclass_to_schema(gpos, gpo.get_allowed(uuid)))
+            return returnify(200, "Success", gpo_dataclass_to_schema(gpos))
     except ValueError as e:
         return returnify(400, f"{e}", {})
     except DoesNotExistException as e:
@@ -624,14 +623,14 @@ def get_gpo_allowed(request, uuid: str):
               response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
               tags=["GPO"],
               description="Adds allowed User/Group to GPO")
-def gpo_add_allowed(request, uuid: str, trustee: str):
+def gpo_add_allowed(request, uuid: str, trustee: TrusteeSchema):
     try:
         if not request.auth.is_staff:
             return returnify(401, "Must be Staff", {})
 
         gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
                   logger=settings.logging.getLogger('soon_api'))
-        gpo.add_allowed(uuid, trustee)
+        gpo.add_allowed(uuid, trustee.trustee)
         return returnify(200, "Success", gpo.get_allowed(uuid))
     except ValueError as e:
         return returnify(400, f"{e}", {})
@@ -647,14 +646,72 @@ def gpo_add_allowed(request, uuid: str, trustee: str):
                response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
                tags=["GPO"],
                description="Removes allowed User/Group from GPO")
-def gpo_remove_allowed(request, uuid: str, trustee: str):
+def gpo_remove_allowed(request, uuid: str, trustee: TrusteeSchema):
     try:
         if not request.auth.is_staff:
             return returnify(401, "Must be Staff", {})
 
         gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
                   logger=settings.logging.getLogger('soon_api'))
-        gpo.remove_allowed(uuid, trustee)
+        gpo.remove_allowed(uuid, trustee.trustee)
+        return returnify(200, "Success", gpo.get_allowed(uuid))
+    except ValueError as e:
+        return returnify(400, f"{e}", {})
+    except DoesNotExistException as e:
+        return returnify(404, f"{e}", {})
+    except IdentityException as e:
+        return returnify(500, f"{e}", {})
+    except Exception as e:
+        return returnify(500, f"{e}", {})
+
+
+@router.patch('/allowed/multiple',
+              response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
+              tags=["GPO"],
+              description="Adds allowed Users/Groups to GPO")
+def gpo_add_allowed_multiple(request, uuid: str, trustees: TrusteesSchema):
+    try:
+        if not request.auth.is_staff:
+            return returnify(401, "Must be Staff", {})
+
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+
+        for trustee in trustees.trustees:
+            try:
+                gpo.add_allowed(uuid, trustee)
+            except:
+                pass
+
+        return returnify(200, "Success", gpo.get_allowed(uuid))
+    except ValueError as e:
+        return returnify(400, f"{e}", {})
+    except DoesNotExistException as e:
+        return returnify(404, f"{e}", {})
+    except IdentityException as e:
+        return returnify(500, f"{e}", {})
+    except Exception as e:
+        return returnify(500, f"{e}", {})
+
+
+@router.delete('/allowed/multiple',
+               response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
+               tags=["GPO"],
+               description="Removes allowed Users/Groups from GPO")
+def gpo_remove_allowed_multiple(request, uuid: str, trustees: TrusteesSchema):
+    try:
+        if not request.auth.is_staff:
+            return returnify(401, "Must be Staff", {})
+
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
+
+        for trustee in trustees.trustees:
+            try:
+                gpo.remove_allowed(uuid, trustee)
+            except:
+                pass
+
         return returnify(200, "Success", gpo.get_allowed(uuid))
     except ValueError as e:
         return returnify(400, f"{e}", {})

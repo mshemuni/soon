@@ -1,2 +1,4 @@
 Django==5.2
 django-ninja==1.4.1
+samba
+ldb

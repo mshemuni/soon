@@ -7,8 +7,6 @@ from logging import Logger
 from pathlib import Path
 from typing import Optional, List, Union, Literal, Dict
 
-from soon.errors import DoesNotExistException, AlreadyIsException, FileException, IdentityException, ActionException
-
 from samba.credentials import Credentials
 from samba.netcmd.gpo import get_gpo_dn
 from samba import param
@@ -19,6 +17,7 @@ import ldb
 
 from .models import GPOModel
 from .utils import GPOObject, Checker, Fixer, GPOScripts
+from .errors import DoesNotExistException, AlreadyIsException, FileException, IdentityException, ActionException
 
 
 class GPO(GPOModel):
@@ -67,6 +66,12 @@ class GPO(GPOModel):
                 "gPCMachineExtensionNames": "[{42B5FAAE-6536-11D2-AE5A-0000F87571E3}{40B6664F-4972-11D1-A7CA-0000F87571E3}]"
             },
         }
+
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}({self.sam_database})"
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
     def __container_exists(self, dn: str) -> bool:
         """
@@ -241,8 +246,14 @@ class GPO(GPOModel):
                     linked_containers.append(str(dn))
         return linked_containers
 
-    def connect(self):
+    def connect(self) -> None:
+        """
+        Creates a connection to ldap database
 
+        Returns
+        -------
+        None
+        """
         try:
             url = f"ldap://{self.machine}" if self.machine is not None else None
             self.sam_database = SamDB(url=url, session_info=system_session(), lp=self.lp)
@@ -742,8 +753,6 @@ class GPO(GPOModel):
         """
         self.logger.info(f"Deletes a GPO using ldap. param({uuid=})")
 
-        # Copy & pasted from cmd_create(GPOCommand):
-
         gpo = self.get(uuid)
 
         if gpo.linked_to:
@@ -961,8 +970,8 @@ class GPO(GPOModel):
                 result_str = result.stdout.strip()
 
                 if "already" in result_str:
-                    self.logger.error(f"WARNING: {trustee} was already found in the current security descriptor")
-                    raise AlreadyIsException(f"WARNING: {trustee} was already found in the current security descriptor")
+                    self.logger.error(f"WARNING: {trustee} was not found in the current security descriptor")
+                    # raise AlreadyIsException(f"WARNING: {trustee} was already found in the current security descriptor")
 
                 new = result_str.split("new")[-1]
                 if each_string in new:
@@ -1026,7 +1035,7 @@ class GPO(GPOModel):
 
                 if "already" in result_str:
                     self.logger.error(f"WARNING: {trustee} was already found in the current security descriptor")
-                    raise AlreadyIsException(f"WARNING: {trustee} was already found in the current security descriptor")
+                    # raise AlreadyIsException(f"WARNING: {trustee} was already found in the current security descriptor")
 
                 new = result_str.split("new")[-1]
                 if not each_string in new:
@@ -1050,9 +1059,8 @@ class GPO(GPOModel):
         List[str]
             List of user/group names
         """
+        # {F5A450FF-489C-4149-9B01-0FFEA7008789}
         the_gpo = self.get(uuid)
-        # samba-tool dsacl get --objectdn="CN={F2B16BD5-050F-4396-A61D-490DA39B7501},CN=Policies,CN=System,DC=dc,DC=prd"
-
         command = ['samba-tool', 'dsacl', 'get', f'--objectdn={the_gpo.DN}', '-U', 'Administrator']
 
         if self.machine:

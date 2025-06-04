@@ -5,7 +5,7 @@ import uuid as pyuuid
 from datetime import datetime
 from logging import Logger
 from pathlib import Path
-from typing import Optional, List, Union, Literal, Dict
+from typing import Optional, List, Union, Literal, Dict, Set
 
 from samba.credentials import Credentials
 from samba.netcmd.gpo import get_gpo_dn
@@ -953,26 +953,23 @@ class GPO(GPOModel):
 
                 sid = Fixer.decode_sid(results[0]["objectSid"][0])
 
-        a_string = f"(OA;CI;CR;edacfd8f-ffb3-11d1-b41d-00a0c968f939;;{sid})"
-        oa_string = f"(A;CI;LCRPRC;;;{sid})"
+        command = ['samba-tool', 'dsacl', 'get', f'--objectdn={the_gpo.DN}', '-U', 'Administrator']
+
+        if self.machine:
+            command.extend(["-H", f"ldap://{self.machine}"])
 
         try:
 
-            for each_string in [a_string, oa_string]:
+            result = subprocess.run(command, input=f"{self.passwd}\n", check=True, text=True, capture_output=True)
 
+            sddl_str = result.stdout.strip()
+            matches = re.findall(rf'\([^()]*{sid}[^()]*\)', sddl_str.split("\n")[-1].split("S:AI")[0])
+
+            for each_string in matches:
                 command = ['samba-tool', 'dsacl', 'delete', f'--objectdn={the_gpo.DN}', f'--sddl={each_string}', '-U',
                            'Administrator']
-
-                if self.machine:
-                    command.extend(["-H", f"ldap://{self.machine}"])
-
                 result = subprocess.run(command, input=f"{self.passwd}\n", check=True, text=True, capture_output=True)
                 result_str = result.stdout.strip()
-
-                if "already" in result_str:
-                    self.logger.error(f"WARNING: {trustee} was not found in the current security descriptor")
-                    # raise AlreadyIsException(f"WARNING: {trustee} was already found in the current security descriptor")
-
                 new = result_str.split("new")[-1]
                 if each_string in new:
                     self.logger.error("Cannot set dsacl")
@@ -1021,7 +1018,6 @@ class GPO(GPOModel):
         oa_string = f"(A;CI;LCRPRC;;;{sid})"
 
         try:
-
             for each_string in [a_string, oa_string]:
 
                 command = ['samba-tool', 'dsacl', 'set', f'--objectdn={the_gpo.DN}', f'--sddl={each_string}', '-U',
@@ -1059,7 +1055,38 @@ class GPO(GPOModel):
         List[str]
             List of user/group names
         """
-        # {F5A450FF-489C-4149-9B01-0FFEA7008789}
+        authorized = {}
+        for each in self.get_permissions(uuid):
+            if each not in authorized.keys():
+                if Checker.is_sid(each):
+                    results = self.sam_database.search(
+                        base=self.dn,
+                        scope=ldb.SCOPE_SUBTREE,
+                        expression=f"(objectSid={each})",
+                        attrs=["name"]
+                    )
+                    if results:
+                        authorized[each] = results[0]["name"][0].decode()
+                else:
+                    if each == "AU":
+                        authorized["S-1-5-11"] = each
+
+        return list(authorized.values())
+
+    def get_permissions(self, uuid: str) -> Set[str]:
+        """
+        Get all permissions for a user/group
+
+        Parameters
+        ----------
+        uuid : str
+            GUID of a GPO
+
+        Returns
+        -------
+        Set[str]
+            Set of user/group names
+        """
         the_gpo = self.get(uuid)
         command = ['samba-tool', 'dsacl', 'get', f'--objectdn={the_gpo.DN}', '-U', 'Administrator']
 
@@ -1067,50 +1094,11 @@ class GPO(GPOModel):
             command.extend(["-H", f"ldap://{self.machine}"])
 
         try:
-
             result = subprocess.run(command, input=f"{self.passwd}\n", check=True, text=True, capture_output=True)
 
             sddl_str = result.stdout.strip()
-
-            return self.parse_allowed(sddl_str.split("\n")[-1])
+            matches = re.findall(r';;((?:S-\d-\d+(?:-\d+)+)|AU)\)', sddl_str.split("\n")[-1].split("S:AI")[0])
+            return set(filter(lambda x: Checker.is_sid(x.split(";")[-1]) or x.endswith("AU"), matches))
 
         except subprocess.CalledProcessError as e:
             raise IdentityException(f"{e}")
-
-    def parse_allowed(self, string: str):
-        """
-        Parses sids and returns names of the given sid in question
-
-        Parameters
-        ----------
-        string : str
-            sid of an object
-
-        Returns
-        -------
-        List[str]
-            List of names
-
-
-        """
-        contents = re.findall(r'\(([^)]*)\)', string)
-        authorized = {}
-        for content in contents:
-            typ, *_, sid = content.split(";")
-            if not "A" in typ.upper():
-                continue
-            if sid not in authorized.keys():
-                if Checker.is_sid(sid):
-                    results = self.sam_database.search(
-                        base=self.dn,
-                        scope=ldb.SCOPE_SUBTREE,
-                        expression=f"(objectSid={content.split(';')[-1]})",
-                        attrs=["name"]
-                    )
-                    if results:
-                        authorized[sid] = results[0]["name"][0].decode()
-                else:
-                    if sid == "AU":
-                        authorized["S-1-5-11"] = sid
-
-        return list(authorized.values())

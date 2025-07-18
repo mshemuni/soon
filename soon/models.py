@@ -29,12 +29,12 @@ class GPOModel(ABC):
 
 
     @abstractmethod
-    def add_script(self, uuid: str, kind: Literal["Login", "Logoff", "Startup", "Shutdown"], script: Union[str, Path],
+    def add_script(self, uuid: str, kind: Literal["Logon", "Logoff", "Startup", "Shutdown"], script: Union[str, Path],
                    parameters_value: str = "") -> None:
         """Adds a new script to the scripts of a GPO"""
 
     @abstractmethod
-    def delete_script(self, uuid: str, kind: Literal["Login", "Logoff", "Startup", "Shutdown"],
+    def delete_script(self, uuid: str, kind: Literal["Logon", "Logoff", "Startup", "Shutdown"],
                       script: Union[str, Path, int]) -> None:
         """Removes a new script from the scripts of a GPO"""
 

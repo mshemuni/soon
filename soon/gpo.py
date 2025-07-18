@@ -53,7 +53,7 @@ class GPO(GPOModel):
         self.ATTRS = ["displayName", "name", "distinguishedName", "gPCFileSysPath", "whenCreated", "whenChanged",
                       "versionNumber", "gPCUserExtensionNames", "gPCMachineExtensionNames", "gPCFunctionalityVersion"]
         self.CSE = {
-            "Login": {
+            "Logon": {
                 "gPCUserExtensionNames": "[{42B5FA88-6536-11D2-AE5A-0000F87571E3}]"
             },
             "Logoff": {
@@ -776,7 +776,7 @@ class GPO(GPOModel):
         except Exception as e:
             raise FileException(f"{e}")
 
-    def add_script(self, uuid: str, kind: Literal["Login", "Logoff", "Startup", "Shutdown"], script: Union[str, Path],
+    def add_script(self, uuid: str, kind: Literal["Logon", "Logoff", "Startup", "Shutdown"], script: Union[str, Path],
                    parameters_value: str = "") -> None:
 
         """
@@ -786,7 +786,7 @@ class GPO(GPOModel):
         ----------
         uuid : str
             The uuid of the GPO
-        kind : Literal["Login", "Logoff", "Startup", "Shutdown"]
+        kind : Literal["Logon", "Logoff", "Startup", "Shutdown"]
             The kind of the script. Actually it indicates when the script would run
         script : Union[str, Path]
             It can be a Path object of a given script. It also can be the path as string.
@@ -808,11 +808,13 @@ class GPO(GPOModel):
 
         the_gpo = self.get(uuid)
         the_script = Fixer.script(script)
+
         Fixer.script_prepare(the_gpo, kind, the_script, parameters_value=parameters_value)
+
         self.__ldap_modify(the_gpo.DN, self.CSE[kind])
         self.__ldap_modify(the_gpo.DN, {"versionNumber": str(the_gpo.version + 1)})
 
-    def delete_script(self, uuid: str, kind: Literal["Login", "Logoff", "Startup", "Shutdown"],
+    def delete_script(self, uuid: str, kind: Literal["Logon", "Logoff", "Startup", "Shutdown"],
                       script: Union[str, Path, int]) -> None:
         """
         Removes a script from the given GPO.
@@ -821,7 +823,7 @@ class GPO(GPOModel):
         ----------
         uuid : str
             The uuid of the GPO
-        kind : Literal["Login", "Logoff", "Startup", "Shutdown"]
+        kind : Literal["Logon", "Logoff", "Startup", "Shutdown"]
             The kind of the script. Actually it indicates when the script would run
         script : Union[str, Path, int]
             It can be a Path object of a given script. It also can be the path as string.
@@ -857,6 +859,9 @@ class GPO(GPOModel):
         removed_script = Fixer.remove_script(user_scripts_ini, kind, the_script)
         (user_scripts_ini.parent / kind / removed_script).unlink()
 
+        self.__ldap_modify(the_gpo.DN, self.CSE[kind])
+        self.__ldap_modify(the_gpo.DN, {"versionNumber": str(the_gpo.version + 1)})
+
     def list_scripts(self, uuid: str) -> GPOScripts:
         """
         Returns a list of scripts belong to the GPO
@@ -869,7 +874,7 @@ class GPO(GPOModel):
         Returns
         -------
         GPOScripts :
-            all Login, Logout, Startup and Shutdown scripts belonging to the GPO
+            all Logon, Logout, Startup and Shutdown scripts belonging to the GPO
         """
         self.logger.info(f"Listing all scripts of a GPO. param({uuid=})")
 

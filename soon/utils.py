@@ -348,7 +348,7 @@ class Fixer:
             return Path(temp_file.name)
 
     @staticmethod
-    def gpo_script_base_path(gpo: GPOObject, kind: Literal["Login", "Logoff", "Startup", "Shutdown"]) -> Path:
+    def gpo_script_base_path(gpo: GPOObject, kind: Literal["Logon", "Logoff", "Startup", "Shutdown"]) -> Path:
         """
         Checks and creates the script base path.
 
@@ -356,7 +356,7 @@ class Fixer:
         ----------
         gpo : GPOObject
             The GPO
-        kind : Literal["Login", "Logoff", "Startup", "Shutdown"]
+        kind : Literal["Logon", "Logoff", "Startup", "Shutdown"]
             The kind of the script. Actually it indicates when the script would run
 
         Returns
@@ -365,7 +365,7 @@ class Fixer:
             The Path object of script base path
         """
         try:
-            if kind in ["Login", "Logoff"]:
+            if kind in ["Logon", "Logoff"]:
                 script_base_path = gpo.local_path / "User" / "Scripts" / kind
             else:
                 script_base_path = gpo.local_path / "Machine" / "Scripts" / kind
@@ -377,7 +377,7 @@ class Fixer:
             raise FileException(f"{e}")
 
     @staticmethod
-    def gpo_script_ini_file(gpo: GPOObject, kind: Literal["Login", "Logoff", "Startup", "Shutdown"]) -> Path:
+    def gpo_script_ini_file(gpo: GPOObject, kind: Literal["Logon", "Logoff", "Startup", "Shutdown"]) -> Path:
         """
         Checks and creates the psscripts.ini file.
 
@@ -385,7 +385,7 @@ class Fixer:
         ----------
         gpo : GPOObject
             The GPO
-        kind : Literal["Login", "Logoff", "Startup", "Shutdown"]
+        kind : Literal["Logon", "Logoff", "Startup", "Shutdown"]
             The kind of the script. Actually it indicates when the script would run
 
         Returns
@@ -394,7 +394,7 @@ class Fixer:
             The Path object of psscripts.ini
         """
         try:
-            if kind in ["Login", "Logoff"]:
+            if kind in ["Logon", "Logoff"]:
                 script_ini_file = gpo.local_path / "User" / "Scripts" / "psscripts.ini"
             else:
                 script_ini_file = gpo.local_path / "Machine" / "Scripts" / "psscripts.ini"
@@ -528,7 +528,7 @@ class Fixer:
             raise FileException(f"{e}")
 
     @staticmethod
-    def script_prepare(gpo: GPOObject, kind: Literal["Login", "Logoff", "Startup", "Shutdown"],
+    def script_prepare(gpo: GPOObject, kind: Literal["Logon", "Logoff", "Startup", "Shutdown"],
                        script: Union[str, Path], parameters_value: Optional[str] = None) -> None:
         """
         Copies and creates ldap records and psscripts.ini file in order to add a script to a GPO
@@ -537,7 +537,7 @@ class Fixer:
         ----------
         gpo : GPOObject
             The GPO
-        kind : Literal["Login", "Logoff", "Startup", "Shutdown"]
+        kind : Literal["Logon", "Logoff", "Startup", "Shutdown"]
             The kind of the script. Actually it indicates when the script would run
         script : Union[str, Path]
             It can be a Path object of a given script. It also can be the path as string.
@@ -667,7 +667,7 @@ class Fixer:
         machine_scripts_ini = gpo.local_path / "Machine" / "Scripts" / "psscripts.ini"
 
         return GPOScripts(
-            login=Fixer.script_creator(user_scripts_ini, "Login"),
+            login=Fixer.script_creator(user_scripts_ini, "Logon"),
             logoff=Fixer.script_creator(user_scripts_ini, "Logoff"),
             startup=Fixer.script_creator(machine_scripts_ini, "Startup"),
             shutdown=Fixer.script_creator(machine_scripts_ini, "Shutdown")

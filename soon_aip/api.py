@@ -103,9 +103,6 @@ def get_scripts(request, uuid: str):
              description="Health Check")
 def health_check(request):
     try:
-        if not request.auth.is_staff:
-            return returnify(401, "Must be Staff", {})
-
         gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
                   logger=settings.logging.getLogger('soon_api'))
         _ = gpo.dn
@@ -128,6 +125,7 @@ def create_gpo(request, name: str):
 
         gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
                   logger=settings.logging.getLogger('soon_api'))
+
         the_gpo = gpo.create(name)
 
         if isinstance(the_gpo, str):
@@ -141,7 +139,7 @@ def create_gpo(request, name: str):
         return returnify(500, f"{e}", {})
 
 
-@router.patch('/link',
+@router.patch('/',
               response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema,
                         500: ReturnSchema},
               tags=["GPO"],
@@ -208,6 +206,9 @@ def script_add(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "
         if not request.auth.is_staff:
             return returnify(401, "Must be Staff", {})
 
+        if kind.lower() == "login":
+            kind = "Logon"
+
         temp_dir = tempfile.gettempdir()
         temp_path = Path(temp_dir) / file.name
 
@@ -271,6 +272,8 @@ def script_add_multiple(request, uuid: str, kinds: List[Literal["Login", "Logoff
 
         scripts = gpo.list_scripts(uuid)
         for kind in kinds:
+            if kind.lower() == "login":
+                kind = "Logon"
             for each_script in getattr(scripts, kind.lower()):
                 if each_script.script.name == Path(temp_file.name).name:
                     if overwrite:
@@ -314,9 +317,10 @@ def script_add_text(request, uuid: str,
         if not request.auth.is_staff:
             return returnify(401, "Must be Staff", {})
 
+        if kind.lower() == "login":
+            kind = "Logon"
         gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
                   logger=settings.logging.getLogger('soon_api'))
-
         if file_name:
             temp_dir = tempfile.gettempdir()
             the_script = Path(temp_dir) / file_name
@@ -325,8 +329,10 @@ def script_add_text(request, uuid: str,
                 temp_file.write(body.script)
         else:
             the_script = body.script
-
+        print(kind)
+        print("=" * 120)
         gpo.add_script(uuid, kind, the_script, parameters_value=parameters)
+
 
         return returnify(200, "Success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
     except ValueError as e:
@@ -376,6 +382,9 @@ def script_add_multiple_text(request, uuid: str,
             the_script = body.script
 
         for kind in kinds:
+            if kind.lower() == "login":
+                kind = "Logon"
+
             gpo.add_script(uuid, kind, the_script, parameters_value=parameters)
 
         return returnify(200, "Success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
@@ -420,6 +429,10 @@ def script_replace_multiple_text(request, uuid: str,
 
         script_list = []
         for kind in ['Login', 'Logoff', 'Startup', 'Shutdown']:
+
+            if kind.lower() == "login":
+                kind = "Logon"
+
             script_list.extend(
                 [[each, kind] for each in getattr(scripts, kind.lower()) if each.script.name == file_name])
 
@@ -495,6 +508,9 @@ def script_delete(request, uuid: str, script: Union[str, int], kind: Literal["Lo
     try:
         if not request.auth.is_staff:
             return returnify(401, "Must be Staff", {})
+
+        if kind.lower() == "login":
+            kind = "Logon"
 
         if script.isnumeric():
             the_script = int(script)

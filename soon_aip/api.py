@@ -139,7 +139,7 @@ def create_gpo(request, name: str):
         return returnify(500, f"{e}", {})
 
 
-@router.patch('/',
+@router.patch('/link',
               response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema,
                         500: ReturnSchema},
               tags=["GPO"],

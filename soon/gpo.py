@@ -1,3 +1,4 @@
+import configparser
 import re
 import shutil
 import subprocess
@@ -72,6 +73,14 @@ class GPO(GPOModel):
 
     def __repr__(self) -> str:
         return self.__str__()
+
+    def __build_gpo_version(self, user_version, computer_version):
+        return (user_version << 16) | (computer_version & 0xFFFF)
+
+    def __split_gpo_version(self, version):
+        user_version = (version >> 16) & 0xFFFF
+        computer_version = version & 0xFFFF
+        return user_version, computer_version
 
     def __container_exists(self, dn: str) -> bool:
         """
@@ -812,7 +821,24 @@ class GPO(GPOModel):
         Fixer.script_prepare(the_gpo, kind, the_script, parameters_value=parameters_value)
 
         self.__ldap_modify(the_gpo.DN, self.CSE[kind])
-        self.__ldap_modify(the_gpo.DN, {"versionNumber": str(the_gpo.version + 1)})
+
+        user_version, computer_version = self.__split_gpo_version(the_gpo.version)
+
+        if kind in ["Logon", "Logoff"]:
+            user_version += 1
+        elif kind in ["Startup", "Shutdown"]:
+            computer_version += 1
+
+        new_version = self.__build_gpo_version(user_version, computer_version)
+
+        self.__ldap_modify(the_gpo.DN, {"versionNumber": str(new_version)})
+
+        gpt_file_path = the_gpo.local_path / "GPT.INI"
+        config = configparser.ConfigParser()
+        config.read(gpt_file_path)
+        config['General']['Version'] = str(new_version)
+        with open(gpt_file_path, 'w') as configfile:
+            config.write(configfile)
 
     def delete_script(self, uuid: str, kind: Literal["Logon", "Logoff", "Startup", "Shutdown"],
                       script: Union[str, Path, int]) -> None:

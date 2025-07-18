@@ -329,8 +329,7 @@ def script_add_text(request, uuid: str,
                 temp_file.write(body.script)
         else:
             the_script = body.script
-        print(kind)
-        print("=" * 120)
+
         gpo.add_script(uuid, kind, the_script, parameters_value=parameters)
 
 

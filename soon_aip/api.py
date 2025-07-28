@@ -856,7 +856,7 @@ def create_key(request, name: str):
 
 @router.delete('/key', response={200: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 500: ReturnSchema},
                tags=["GPO"],
-               description="Create a key")
+               description="Delete a key")
 def delete_key(request, name: str):
     try:
         if not request.auth.is_staff:
@@ -876,7 +876,7 @@ def delete_key(request, name: str):
              response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema,
                        500: ReturnSchema},
              tags=["GPO"],
-             description="Create a key")
+             description="Sign scripts. If `scripts` is not given every script in DC wll be signed")
 def sign_script(request, key: Optional[str] = None, gpos_scripts: Optional[ScriptFileSchema] = None):
     try:
         if not request.auth.is_staff:
@@ -932,15 +932,15 @@ def sign_script(request, key: Optional[str] = None, gpos_scripts: Optional[Scrip
                response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema,
                          500: ReturnSchema},
                tags=["GPO"],
-               description="Create a key")
-def unsign_script(request, gpos_scripts: Optional[ScriptFileSchema] = None):
+               description="Unsign scripts. If `scripts` is not given every script in DC wll be unsigned")
+def unsign_script(request, scripts: Optional[ScriptFileSchema] = None):
     try:
         if not request.auth.is_staff:
             return returnify(401, "Must be Staff", {})
 
         files_to_sign = []
 
-        if gpos_scripts is None:
+        if scripts is None:
             gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
                       logger=settings.logging.getLogger('soon_api'))
 
@@ -949,7 +949,7 @@ def unsign_script(request, gpos_scripts: Optional[ScriptFileSchema] = None):
                 for each_script in scripts.login:
                     files_to_sign.append(each_script.script)
         else:
-            for each_file in gpos_scripts.scripts:
+            for each_file in scripts.scripts:
                 file_as_path = Path(each_file)
                 if file_as_path.exists():
                     files_to_sign.append(file_as_path)

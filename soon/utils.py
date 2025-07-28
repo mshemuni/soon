@@ -6,18 +6,24 @@ import struct
 import tempfile
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
 from logging import Logger, getLogger
 from pathlib import Path
 from typing import List, Union, Literal, Optional, Dict
 import re
+
+import subprocess
+from cryptography import x509
+from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from datetime import datetime, timedelta
 
 from samba import param
 from samba.auth import system_session
 from samba.samdb import SamDB
 import ldb
 
-from soon.errors import FileException, DoesNotExistException
+from soon.errors import FileException, DoesNotExistException, IdentityException, ActionException
 
 
 @dataclass
@@ -737,3 +743,256 @@ class Fixer:
         # Format SID string
         sid_str = f"S-{revision}-{identifier_authority}" + ''.join(f"-{sa}" for sa in sub_authorities)
         return sid_str
+
+    @staticmethod
+    def sign_script(script_path: Union[str, Path], private_key_path: Union[str, Path],
+                    out_put_path: Optional[Union[str, Path]] = None, password: Optional[str] = None):
+        if isinstance(script_path, str):
+            script_path_to_use = Path(script_path)
+        else:
+            script_path_to_use = script_path
+
+        if isinstance(private_key_path, str):
+            private_key_path_to_use = Path(private_key_path)
+        else:
+            private_key_path_to_use = private_key_path
+
+        if out_put_path is None:
+            out_put_path_to_use = script_path_to_use.parent / Path(
+                script_path_to_use.stem + "-signed" + script_path_to_use.suffix)
+        else:
+            if isinstance(out_put_path, str):
+                out_put_path_to_use = Path(out_put_path)
+            else:
+                out_put_path_to_use = out_put_path
+
+        if not script_path_to_use.exists():
+            raise FileNotFoundError("Script does not exist")
+
+        if not private_key_path_to_use.exists():
+            raise FileNotFoundError("Private key does not exist")
+
+        if out_put_path_to_use.exists():
+            raise FileExistsError("Output file already exists")
+
+        command = [
+            "osslsigncode", "sign", "-pkcs12", private_key_path_to_use.as_posix(),
+            "-in", script_path_to_use.as_posix(), "-out", out_put_path_to_use.as_posix()
+        ]
+
+        if password is not None:
+            command.extend(["-pass", password])
+
+
+        try:
+            _ = subprocess.run(command, check=True, text=True, capture_output=True)
+
+            Fixer.apply_reference_permissions_and_owner(script_path_to_use, out_put_path_to_use)
+
+            if out_put_path is None:
+                script_path_to_use.unlink()
+                out_put_path_to_use.rename(script_path)
+
+        except subprocess.CalledProcessError as e:
+            raise IdentityException(f"{e}")
+
+    @staticmethod
+    def unsign_script(script_path: Union[str, Path], out_put_path: Optional[Union[str, Path]] = None):
+        if isinstance(script_path, str):
+            script_path_to_use = Path(script_path)
+        else:
+            script_path_to_use = script_path
+
+        if out_put_path is None:
+            out_put_path_to_use = script_path_to_use.parent / Path(
+                script_path_to_use.stem + "-signed" + script_path_to_use.suffix)
+        else:
+            if isinstance(out_put_path, str):
+                out_put_path_to_use = Path(out_put_path)
+            else:
+                out_put_path_to_use = out_put_path
+
+        if not script_path_to_use.exists():
+            raise FileNotFoundError("Script does not exist")
+
+        if out_put_path_to_use.exists():
+            raise FileExistsError("Output file already exists")
+
+        command = ["osslsigncode", "remove-signature", "-in", script_path_to_use.as_posix(), "-out",
+                   out_put_path_to_use.as_posix()]
+
+        try:
+            _ = subprocess.run(command, check=True, text=True, capture_output=True)
+
+            Fixer.apply_reference_permissions_and_owner(script_path_to_use, out_put_path_to_use)
+
+            if out_put_path is None:
+                script_path_to_use.unlink()
+                out_put_path_to_use.rename(script_path)
+
+        except subprocess.CalledProcessError as e:
+            raise IdentityException(f"{e}")
+
+    @staticmethod
+    def create_keys(name: str,
+                    keys_dir: Union[str, Path],
+                    pfx_password: Optional[str] = None) -> str:
+        """
+        Generate private key, certificate, and PFX bundle for code signing,
+        storing them under keys_dir/private, keys_dir/public, keys_dir/pfx.
+
+        Parameters
+        ----------
+        name : str
+            Base filename and Common Name (CN) for the certificate.
+        keys_dir : str or Path
+            Root directory containing private/, public/, and pfx/ subfolders.
+        pfx_password : str, optional
+            Password for the .pfx bundle. If None, no password is used.
+
+        Returns
+        -------
+        str
+            The key name
+        """
+        keys_dir_to_use = Path(keys_dir)
+        private_dir = keys_dir_to_use / "private"
+        public_dir = keys_dir_to_use / "public"
+        pfx_dir = keys_dir_to_use / "pfx"
+
+        for d in [private_dir, public_dir, pfx_dir]:
+            d.mkdir(parents=True, exist_ok=True)
+
+        existing_keys = Fixer.get_keys(keys_dir_to_use)
+
+        if name in existing_keys:
+            components = existing_keys[name]
+            if any(components.values()):
+                existing_paths = [str(p) for p in components.values() if p is not None]
+                raise FileExistsError(f"Files already exist for name '{name}': {existing_paths}")
+
+        key_file = private_dir / f"{name}.key"
+        crt_file = public_dir / f"{name}.crt"
+        pfx_file = pfx_dir / f"{name}.pfx"
+
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        with open(key_file, "wb") as f:
+            f.write(key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.TraditionalOpenSSL,
+                encryption_algorithm=serialization.NoEncryption()
+            ))
+
+        subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, name)])
+
+        cert = (
+            x509.CertificateBuilder()
+            .subject_name(subject)
+            .issuer_name(subject)
+            .public_key(key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(datetime.utcnow())
+            .not_valid_after(datetime.utcnow() + timedelta(days=365))
+            .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
+            .add_extension(x509.KeyUsage(
+                digital_signature=True,
+                key_encipherment=False,
+                content_commitment=False,
+                data_encipherment=False,
+                key_agreement=False,
+                key_cert_sign=False,
+                crl_sign=False,
+                encipher_only=False,
+                decipher_only=False
+            ), critical=True)
+            .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.CODE_SIGNING]), critical=False)
+            .add_extension(x509.SubjectKeyIdentifier.from_public_key(key.public_key()), critical=False)
+            .sign(key, hashes.SHA256())
+        )
+
+        with open(crt_file, "wb") as f:
+            f.write(cert.public_bytes(serialization.Encoding.PEM))
+
+        try:
+            subprocess.run([
+                "openssl", "pkcs12", "-export",
+                "-out", str(pfx_file),
+                "-inkey", str(key_file),
+                "-in", str(crt_file),
+                "-name", name,
+                "-passout", f"pass:{pfx_password or ''}"
+            ], check=True)
+        except subprocess.CalledProcessError as e:
+            raise IdentityException(f"OpenSSL pkcs12 export failed: {e}")
+
+        return name
+
+    @staticmethod
+    def get_keys(keys_dir: Union[str, Path]) -> Dict[str, Dict[str, Optional[Path]]]:
+        """
+        List all available key names with paths to their components as a dictionary.
+
+        Parameters
+        ----------
+        keys_dir : str or Path
+            Root directory containing private/, public/, and pfx/ subfolders.
+
+        Returns
+        -------
+        Dict[str, Dict[str, Optional[Path]]]
+            Dict with:
+              key: base key name (str)
+              value: dict with keys "private", "public", "pfx" and values Path or None
+        """
+        keys_dir = Path(keys_dir)
+        private_dir = keys_dir / "private"
+        public_dir = keys_dir / "public"
+        pfx_dir = keys_dir / "pfx"
+
+        names = set()
+
+        for folder, ext in [(private_dir, ".key"), (public_dir, ".crt"), (pfx_dir, ".pfx")]:
+            if folder.exists() and folder.is_dir():
+                for f in folder.glob(f"*{ext}"):
+                    if f.is_file():
+                        names.add(f.stem)
+
+        result = {}
+        for name in sorted(names):
+            private_path = private_dir / f"{name}.key"
+            public_path = public_dir / f"{name}.crt"
+            pfx_path = pfx_dir / f"{name}.pfx"
+
+            result[name] = {
+                "private": private_path if private_path.exists() else None,
+                "public": public_path if public_path.exists() else None,
+                "pfx": pfx_path if pfx_path.exists() else None,
+            }
+
+        return result
+
+    @staticmethod
+    def delete_key(name: str, keys_dir: Union[str, Path]) -> None:
+        """
+        Delete the private key, public certificate, and PFX bundle files
+        associated with the given key name, if it exists.
+
+        Parameters
+        ----------
+        name : str
+            Base filename/key name to delete.
+        keys_dir : str or Path
+            Root directory containing private/, public/, and pfx/ subfolders.
+        """
+        keys_dir = Path(keys_dir)
+        key_map = Fixer.get_keys(keys_dir)
+
+        if name not in key_map:
+            raise FileNotFoundError(f"Key {name} not found")
+
+        for file in key_map[name].values():
+            if file and file.exists():
+                try:
+                    file.unlink()
+                except Exception:
+                    pass

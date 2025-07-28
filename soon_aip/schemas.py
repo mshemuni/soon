@@ -1,13 +1,16 @@
 from datetime import datetime
-from typing import List, Any
-
+from typing import Dict, List, Optional, Any
+from uuid import UUID
 from ninja import Schema
+from pydantic import RootModel, ConfigDict, BaseModel
+
 
 class ReturnSchema(Schema):
     timestamp: int
     status: int
     message: str
     data: Any
+
 
 class ScriptSchema(Schema):
     order: int
@@ -41,8 +44,14 @@ class GPOSchema(Schema):
 class ScriptAsText(Schema):
     script: str
 
+
 class TrusteeSchema(Schema):
     trustee: str
 
+
 class TrusteesSchema(Schema):
     trustees: List[str]
+
+
+class ScriptFileSchema(Schema):
+    scripts: List[str]

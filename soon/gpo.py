@@ -787,7 +787,6 @@ class GPO(GPOModel):
 
     def add_script(self, uuid: str, kind: Literal["Logon", "Logoff", "Startup", "Shutdown"], script: Union[str, Path],
                    parameters_value: str = "") -> None:
-
         """
         Adds a script to the given GPO.
 
@@ -800,7 +799,7 @@ class GPO(GPOModel):
         script : Union[str, Path]
             It can be a Path object of a given script. It also can be the path as string.
             It also can be a command as string. A script file would be automatically created.
-        parameters_value: str
+        parameters_value: str, ""
             The parameters to be passed to the script as it runs.
 
         Returns

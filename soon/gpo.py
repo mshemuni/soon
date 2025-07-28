@@ -55,10 +55,10 @@ class GPO(GPOModel):
                       "versionNumber", "gPCUserExtensionNames", "gPCMachineExtensionNames", "gPCFunctionalityVersion"]
         self.CSE = {
             "Logon": {
-                "gPCUserExtensionNames": "[{42B5FA88-6536-11D2-AE5A-0000F87571E3}]"
+                "gPCUserExtensionNames": "[{42B5FAAE-6536-11D2-AE5A-0000F87571E3}{40B66650-4972-11D1-A7CA-0000F87571E3}]"
             },
             "Logoff": {
-                "gPCUserExtensionNames": "[{42B5FA88-6536-11D2-AE5A-0000F87571E3}]"
+                "gPCUserExtensionNames": "[{42B5FAAE-6536-11D2-AE5A-0000F87571E3}{40B66650-4972-11D1-A7CA-0000F87571E3}]"
             },
             "Startup": {
                 "gPCMachineExtensionNames": "[{42B5FAAE-6536-11D2-AE5A-0000F87571E3}{40B6664F-4972-11D1-A7CA-0000F87571E3}]"
@@ -824,9 +824,9 @@ class GPO(GPOModel):
         user_version, computer_version = self.__split_gpo_version(the_gpo.version)
 
         if kind in ["Logon", "Logoff"]:
-            user_version += 1
+            user_version += 2 if user_version == 0 else 1
         elif kind in ["Startup", "Shutdown"]:
-            computer_version += 1
+            computer_version += 2 if user_version == 0 else 1
 
         new_version = self.__build_gpo_version(user_version, computer_version)
 

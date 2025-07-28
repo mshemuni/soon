@@ -902,6 +902,12 @@ def sign_script(request, key: Optional[str] = None, gpos_scripts: Optional[Scrip
                 scripts = gpo.list_scripts(each_gpo.CN)
                 for each_script in scripts.login:
                     files_to_sign.append(each_script.script)
+                for each_script in scripts.logoff:
+                    files_to_sign.append(each_script.script)
+                for each_script in scripts.startup:
+                    files_to_sign.append(each_script.script)
+                for each_script in scripts.shutdown:
+                    files_to_sign.append(each_script.script)
         else:
             for each_file in gpos_scripts.scripts:
                 file_as_path = Path(each_file)
@@ -947,6 +953,12 @@ def unsign_script(request, scripts: Optional[ScriptFileSchema] = None):
             for each_gpo in gpo.get():
                 scripts = gpo.list_scripts(each_gpo.CN)
                 for each_script in scripts.login:
+                    files_to_sign.append(each_script.script)
+                for each_script in scripts.logoff:
+                    files_to_sign.append(each_script.script)
+                for each_script in scripts.startup:
+                    files_to_sign.append(each_script.script)
+                for each_script in scripts.shutdown:
                     files_to_sign.append(each_script.script)
         else:
             for each_file in scripts.scripts:

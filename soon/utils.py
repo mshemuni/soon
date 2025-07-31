@@ -226,6 +226,15 @@ class Checker:
         pattern = r"^S-\d+(-\d+)+$"
         return bool(re.match(pattern, string))
 
+    @staticmethod
+    def file_size(file_path: Union[str, Path]) -> int:
+        if isinstance(file_path, str):
+            the_file_path = Path(file_path)
+        else:
+            the_file_path = file_path
+
+        return os.path.getsize(file_path)
+
 
 class Fixer:
     @staticmethod

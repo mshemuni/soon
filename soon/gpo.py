@@ -18,7 +18,8 @@ import ldb
 
 from .models import GPOModel
 from .utils import GPOObject, Checker, Fixer, GPOScripts
-from .errors import DoesNotExistException, AlreadyIsException, FileException, IdentityException, ActionException
+from .errors import DoesNotExistException, AlreadyIsException, FileException, IdentityException, ActionException, \
+    FileSizeException
 
 
 class GPO(GPOModel):
@@ -816,6 +817,9 @@ class GPO(GPOModel):
 
         the_gpo = self.get(uuid)
         the_script = Fixer.script(script)
+
+        if Checker.file_size(the_script) <= 4:
+            raise FileSizeException("The file size must be larger then 4 bytes")
 
         Fixer.script_prepare(the_gpo, kind, the_script, parameters_value=parameters_value)
 

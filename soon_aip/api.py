@@ -9,7 +9,8 @@ from ninja import File, Body
 from ninja.files import UploadedFile
 
 from soon import GPO
-from soon.errors import DoesNotExistException, AlreadyIsException, FileException, IdentityException, ActionException
+from soon.errors import DoesNotExistException, AlreadyIsException, FileException, IdentityException, ActionException, \
+    FileSizeException
 from soon.utils import GPOObject, Script, GPOScripts, Fixer
 from soon_aip import settings
 
@@ -198,10 +199,11 @@ def unlink_gpo(request, uuid: str, container: Optional[str] = None):
 
 
 @router.patch('/script',
-              response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema,
-                        500: ReturnSchema},
+              response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 406: ReturnSchema,
+                        409: ReturnSchema, 500: ReturnSchema},
               tags=["GPO"],
-              description="Adds a script to a GPO, Script kinds can be: `Login`, `Logoff`, `Startup`, `Shutdown`")
+              description="Adds a script to a GPO, Script kinds can be: `Login`, `Logoff`, `Startup`, `Shutdown`."
+                          " The script must be at least 4 Bytes in size")
 def script_add(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "Shutdown"], parameters: str = "",
                overwrite: bool = False, file: UploadedFile = File(...), sign: bool = True):
     try:
@@ -235,16 +237,13 @@ def script_add(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "
 
         gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
                   logger=settings.logging.getLogger('soon_api'))
-        print("*" * 120)
         scripts = gpo.list_scripts(uuid)
-        print("*" * 120)
-        print(scripts, kind.lower())
+
         for each_script in getattr(scripts, "login" if kind.lower() == "logon" else kind.lower()):
             if each_script.script.name == temp_file.name:
                 if overwrite:
                     gpo.delete_script(uuid, kind, each_script.order)
                     each_script.script.unlink()
-        print("=" * 120)
         gpo.add_script(uuid, kind, temp_path, parameters_value=parameters)
 
         return returnify(200, "Success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
@@ -254,6 +253,8 @@ def script_add(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "
         return returnify(404, f"{e}", {})
     except ActionException as e:
         return returnify(409, f"{e}", {})
+    except FileSizeException as e:
+        return returnify(406, f"{e}", {})
     except FileException as e:
         return returnify(500, f"{e}", {})
     except IdentityException as e:
@@ -269,10 +270,11 @@ def script_add(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "
 
 
 @router.patch('/script/multiple',
-              response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema,
-                        500: ReturnSchema},
+              response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 406: ReturnSchema,
+                        409: ReturnSchema, 500: ReturnSchema},
               tags=["GPO"],
-              description="Adds a script to a GPO, Script kinds can be a combination of: `Login`, `Logoff`, `Startup`, `Shutdown`")
+              description="Adds a script to a GPO, Script kinds can be a combination of: `Login`, `Logoff`, `Startup`, `Shutdown`."
+                          " The script must be at least 4 Bytes in size")
 def script_add_multiple(request, uuid: str, kinds: List[Literal["Login", "Logoff", "Startup", "Shutdown"]] = Query(...),
                         parameters: str = "", overwrite: bool = False, file: UploadedFile = File(...),
                         sign: bool = True):
@@ -324,6 +326,8 @@ def script_add_multiple(request, uuid: str, kinds: List[Literal["Login", "Logoff
         return returnify(404, f"{e}", {})
     except ActionException as e:
         return returnify(409, f"{e}", {})
+    except FileSizeException as e:
+        return returnify(406, f"{e}", {})
     except FileException as e:
         return returnify(500, f"{e}", {})
     except IdentityException as e:
@@ -339,10 +343,11 @@ def script_add_multiple(request, uuid: str, kinds: List[Literal["Login", "Logoff
 
 
 @router.patch('/script/text',
-              response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema,
-                        500: ReturnSchema},
+              response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 406: ReturnSchema,
+                        409: ReturnSchema, 500: ReturnSchema},
               tags=["GPO"],
-              description="Adds a script to a GPO, Script kinds can be: `Login`, `Logoff`, `Startup`, `Shutdown`")
+              description="Adds a script to a GPO, Script kinds can be: `Login`, `Logoff`, `Startup`, `Shutdown`."
+                          " The script must be at least 4 Bytes in size")
 def script_add_text(request, uuid: str,
                     kind: Literal["Login", "Logoff", "Startup", "Shutdown"],
                     file_name: Optional[str] = None,
@@ -387,6 +392,8 @@ def script_add_text(request, uuid: str,
         return returnify(400, f"{e}", {})
     except FileNotFoundError as e:
         return returnify(404, f"{e}", {})
+    except FileSizeException as e:
+        return returnify(406, f"{e}", {})
     except ActionException as e:
         return returnify(409, f"{e}", {})
     except FileException as e:
@@ -404,10 +411,11 @@ def script_add_text(request, uuid: str,
 
 
 @router.patch('/script/text/multiple',
-              response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema,
-                        500: ReturnSchema},
+              response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 406: ReturnSchema,
+                        409: ReturnSchema, 500: ReturnSchema},
               tags=["GPO"],
-              description="Adds a script to a GPO, Script kinds can be a combination of: `Login`, `Logoff`, `Startup`, `Shutdown`")
+              description="Adds a script to a GPO, Script kinds can be a combination of: `Login`, `Logoff`, `Startup`, `Shutdown`."
+                          " The script must be at least 4 Bytes in size")
 def script_add_multiple_text(request, uuid: str,
                              file_name: Optional[str] = None,
                              kinds: List[Literal["Login", "Logoff", "Startup", "Shutdown"]] = Query(...),
@@ -455,6 +463,8 @@ def script_add_multiple_text(request, uuid: str,
         return returnify(400, f"{e}", {})
     except FileNotFoundError as e:
         return returnify(404, f"{e}", {})
+    except FileSizeException as e:
+        return returnify(406, f"{e}", {})
     except ActionException as e:
         return returnify(409, f"{e}", {})
     except FileException as e:
@@ -472,10 +482,11 @@ def script_add_multiple_text(request, uuid: str,
 
 
 @router.patch('/script/replace/text/multiple',
-              response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 409: ReturnSchema,
-                        500: ReturnSchema},
+              response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 404: ReturnSchema, 406: ReturnSchema,
+                        409: ReturnSchema, 500: ReturnSchema},
               tags=["GPO"],
-              description="Replaces a script to a GPO, Script kinds can be a combination of: `Login`, `Logoff`, `Startup`, `Shutdown`")
+              description="Replaces a script to a GPO, Script kinds can be a combination of: `Login`, `Logoff`, `Startup`, `Shutdown`."
+                          " The script must be at least 4 Bytes in size")
 def script_replace_multiple_text(request, uuid: str,
                                  file_name: str,
                                  kinds: List[Literal["Login", "Logoff", "Startup", "Shutdown"]] = Query(...),
@@ -544,6 +555,8 @@ def script_replace_multiple_text(request, uuid: str,
         return returnify(404, f"{e}", {})
     except ActionException as e:
         return returnify(409, f"{e}", {})
+    except FileSizeException as e:
+        return returnify(406, f"{e}", {})
     except FileException as e:
         return returnify(500, f"{e}", {})
     except IdentityException as e:

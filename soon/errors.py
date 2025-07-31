@@ -13,5 +13,10 @@ class FileException(Exception):
 class IdentityException(Exception):
     """Raised to wrap exceptions originating from external modules."""
 
+
 class ActionException(Exception):
     """Raised when the action is not completed"""
+
+
+class FileSizeException(Exception):
+    """Raised when the file size is not sufficient"""

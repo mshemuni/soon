@@ -855,6 +855,11 @@ class Fixer:
         str
             The key name
         """
+        pattern = r'^[A-Za-z_][A-Za-z0-9_]*$'
+        if not bool(re.match(pattern, name)):
+            raise ValueError("Key name must start with an ascii and can only contain ascii, digits and underscores")
+
+
         keys_dir_to_use = Path(keys_dir)
         private_dir = keys_dir_to_use / "private"
         public_dir = keys_dir_to_use / "public"

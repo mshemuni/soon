@@ -235,14 +235,16 @@ def script_add(request, uuid: str, kind: Literal["Login", "Logoff", "Startup", "
 
         gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
                   logger=settings.logging.getLogger('soon_api'))
-
+        print("*" * 120)
         scripts = gpo.list_scripts(uuid)
-        for each_script in getattr(scripts, kind.lower()):
+        print("*" * 120)
+        print(scripts, kind.lower())
+        for each_script in getattr(scripts, "login" if kind.lower() == "logon" else kind.lower()):
             if each_script.script.name == temp_file.name:
                 if overwrite:
                     gpo.delete_script(uuid, kind, each_script.order)
                     each_script.script.unlink()
-
+        print("=" * 120)
         gpo.add_script(uuid, kind, temp_path, parameters_value=parameters)
 
         return returnify(200, "Success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))
@@ -495,7 +497,8 @@ def script_replace_multiple_text(request, uuid: str,
                 kind = "Logon"
 
             script_list.extend(
-                [[each, kind] for each in getattr(scripts, "login" if kind.lower() == "logon" else kind.lower()) if each.script.name == file_name])
+                [[each, kind] for each in getattr(scripts, "login" if kind.lower() == "logon" else kind.lower()) if
+                 each.script.name == file_name])
 
         if len(script_list) == 0:
             return returnify(404, "Script does not exist", {})
@@ -836,9 +839,9 @@ def get_keys(request):
         return returnify(500, f"{e}", {})
 
 
-@router.post('/key', response={200: ReturnSchema, 401: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
-             tags=["GPO"],
-             description="Create a key")
+@router.post('/key',
+             response={200: ReturnSchema, 400: ReturnSchema, 401: ReturnSchema, 409: ReturnSchema, 500: ReturnSchema},
+             tags=["GPO"], description="Create a key")
 def create_key(request, name: str):
     try:
         if not request.auth.is_staff:
@@ -846,6 +849,9 @@ def create_key(request, name: str):
 
         _ = Fixer.create_keys(name, settings.keys_dir)
         return returnify(200, "Success", "Key Crated")
+
+    except ValueError as e:
+        return returnify(400, f"{e}", {})
     except FileExistsError as e:
         return returnify(409, f"{e}", {})
     except IdentityException as e:

@@ -233,7 +233,7 @@ class Checker:
         else:
             the_file_path = file_path
 
-        return os.path.getsize(file_path)
+        return the_file_path.stat().st_size
 
 
 class Fixer:

@@ -658,6 +658,8 @@ def script_delete_multiple(request, uuid: str,
         gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
                   logger=settings.logging.getLogger('soon_api'))
         for kind in kinds:
+            if kind.lower() == "login":
+                kind = "Logon"
             gpo.delete_script(uuid, kind, the_script)
 
         return returnify(200, "Success", scripts_dataclass_to_schema(gpo.list_scripts(uuid)))

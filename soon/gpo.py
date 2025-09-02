@@ -969,7 +969,7 @@ class GPO(GPOModel):
         """
         the_gpo = self.get(uuid)
 
-        if trustee == "AU":
+        if trustee in ["AU", "DC"]:
             sid = trustee
         else:
             if Checker.is_sid(trustee):
@@ -997,7 +997,7 @@ class GPO(GPOModel):
             result = subprocess.run(command, input=f"{self.passwd}\n", check=True, text=True, capture_output=True)
 
             sddl_str = result.stdout.strip()
-            matches = re.findall(rf'\([^()]*{sid}[^()]*\)', sddl_str.split("\n")[-1].split("S:AI")[0])
+            matches = re.findall(rf'\([^()]*;{sid}\)', sddl_str.split("\n")[-1].split("S:AI")[0])
 
             for each_string in matches:
                 command = ['samba-tool', 'dsacl', 'delete', f'--objectdn={the_gpo.DN}', f'--sddl={each_string}', '-U',
@@ -1030,7 +1030,7 @@ class GPO(GPOModel):
 
         the_gpo = self.get(uuid)
 
-        if trustee == "AU":
+        if trustee in ["AU", "DC"]:
             sid = trustee
         else:
             if Checker.is_sid(trustee):

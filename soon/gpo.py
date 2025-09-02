@@ -1104,6 +1104,8 @@ class GPO(GPOModel):
                 else:
                     if each == "AU":
                         authorized["S-1-5-11"] = each
+                    elif each == "DC":
+                        authorized["DC"] = each
 
         return list(authorized.values())
 
@@ -1131,8 +1133,8 @@ class GPO(GPOModel):
             result = subprocess.run(command, input=f"{self.passwd}\n", check=True, text=True, capture_output=True)
 
             sddl_str = result.stdout.strip()
-            matches = re.findall(r';;((?:S-\d-\d+(?:-\d+)+)|AU)\)', sddl_str.split("\n")[-1].split("S:AI")[0])
-            return set(filter(lambda x: Checker.is_sid(x.split(";")[-1]) or x.endswith("AU"), matches))
+            matches = re.findall(r';;((?:S-\d-\d+(?:-\d+)+)|AU|DC)\)', sddl_str.split("\n")[-1].split("S:AI")[0])
+            return set(filter(lambda x: Checker.is_sid(x.split(";")[-1]) or x.endswith("AU") or x.endswith("DC"), matches))
 
         except subprocess.CalledProcessError as e:
             raise IdentityException(f"{e}")

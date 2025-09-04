@@ -1,5 +1,6 @@
 # soon  
 **Samba Group Policy Manager**
+NEW
 
 **`soon`** is a lightweight RESTful API for managing Group Policies on a `samba-ad-dc` (Active Directory Domain Controller).  
 > ⚠️ This tool must be run directly on a domain controller.

@@ -1,0 +1,11 @@
+./src/LICENSE
+./src/manage.py
+./src/README.md
+./src/requirements.txt
+./src/soon
+./src/soon_aip
+./src/templates
+./src/tests
+./src/user
+./utils/.env
+./utils/soon.service

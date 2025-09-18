@@ -1,0 +1,3 @@
+src/* opt/soon/
+utils/.env opt/soon/
+utils/soon.service lib/systemd/system/

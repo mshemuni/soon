@@ -1,0 +1,11 @@
+#!/bin/bash
+# Make sure scripts are executable
+chmod +x /opt/soon/manage.py
+
+# Optionally, create a virtual environment
+python3 -m venv /opt/soon/venv --system-site-packages
+/opt/soon/venv/bin/python -m pip install -r /opt/soon/requirements.txt
+
+# Collect static files
+#/opt/soon/venv/bin/python /opt/soon/manage.py collectstatic --noinput
+

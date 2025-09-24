@@ -2,7 +2,7 @@ Package: soon
 Version: 1.0.0
 Architecture: all
 Maintainer: Mohammad NIAEI <mohammad.niaei@tubitak.gov.tr>, Orkun BALCI <orkun.balci@tubitak.gov.tr>
-Installed-Size: 215
+Installed-Size: 225
 Depends: python3, python3-pip, python3-venv, osslsigncode
 Section: web
 Priority: optional

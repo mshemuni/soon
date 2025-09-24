@@ -2,7 +2,6 @@ import getpass
 import os, sys
 import re
 import shutil
-import subprocess
 import time
 from pathlib import Path
 from typing import Optional
@@ -15,7 +14,7 @@ from ldap3 import Server, Connection, ALL, SUBTREE
 
 ENV_PATH = "/opt/soon/.env"
 LDAP_CONF = "/etc/ldap/ldap.conf"
-SOON_PATH = "/root/soon/"
+SOON_PATH = "/opt/soon/"
 
 sys.path.append(SOON_PATH)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "soon_aip.settings")
@@ -285,21 +284,6 @@ def configure_django():
     create_superuser(superuser_username, superuser_email, superuser_password)
 
 
-def enable_and_start_service():
-    try:
-        subprocess.run(
-            ["systemctl", "enable", "soon"],
-            check=True
-        )
-
-        subprocess.run(
-            ["systemctl", "start", "soon"],
-            check=True
-        )
-    except subprocess.CalledProcessError as e:
-        print(f"Error while managing service 'soon': {e}")
-
-
 def main():
     print("Welcome to soon post installation configuration.")
     print("")
@@ -333,13 +317,6 @@ def main():
     yes = ask_yes_no("Allow configuration? If you want to configure it yourself type `n/no`")
     if yes:
         configure_django()
-    print()
-
-    print("4) Soon Service")
-    print("Will enable and start the soon's service")
-    yes = ask_yes_no("Allow to enable and start soon service? If you want to do it yourself type `n/no`")
-    if yes:
-        enable_and_start_service()
     print()
 
 

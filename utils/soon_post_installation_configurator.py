@@ -19,6 +19,11 @@ SOON_PATH = "/root/soon/"
 
 sys.path.append(SOON_PATH)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "soon_aip.settings")
+os.environ.setdefault("SoonSECRET_KEY", "coming soon")
+os.environ.setdefault("SoonMachine", "coming soon")
+os.environ.setdefault("SoonADAdmin", "coming soon")
+os.environ.setdefault("SoonADPassword", "coming soon")
+os.environ.setdefault("SoonKeys", "coming soon")
 django.setup()
 
 from user.models import CustomUser as CU

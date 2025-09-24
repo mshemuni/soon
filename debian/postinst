@@ -6,9 +6,9 @@ chmod +x /opt/soon/manage.py
 python3 -m venv /opt/soon/venv --system-site-packages
 /opt/soon/venv/bin/python -m pip install -r /opt/soon/requirements.txt
 
+
+echo "########################################"
 echo "To configure soon please run:"
 echo "/opt/soon/venv/bin/python /opt/soon/soon_post_installation_configurator.py"
-
-# Collect static files
-#/opt/soon/venv/bin/python /opt/soon/manage.py collectstatic --noinput
+echo "########################################"
 

@@ -2,6 +2,8 @@ import getpass
 import os, sys
 import re
 import shutil
+import subprocess
+import tempfile
 import time
 from pathlib import Path
 from typing import Optional
@@ -14,13 +16,64 @@ from ldap3 import Server, Connection, ALL, SUBTREE
 
 ENV_PATH = "/opt/soon/.env"
 LDAP_CONF = "/etc/ldap/ldap.conf"
-SOON_PATH = "/opt/soon/"
+SOON_PATH = "/root/soon/"
+
+THE_CERTIFIER_SCRIPT = """
+
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+$MachineDir = Split-Path -Parent (Split-Path -Parent $ScriptDir)
+
+$CertFolder = Join-Path $MachineDir "keys"
+
+
+$store = New-Object System.Security.Cryptography.X509Certificates.X509Store(
+    "Root", 
+    [System.Security.Cryptography.X509Certificates.StoreLocation]::LocalMachine
+)
+$store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+
+
+$CertFiles = Get-ChildItem -Path $CertFolder -Include *.crt, *.cer -File
+
+foreach ($CertFile in $CertFiles) {
+    try {
+        $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($CertFile.FullName)
+
+        $existing = $store.Certificates | Where-Object { $_.Thumbprint -eq $cert.Thumbprint }
+
+        if (-not $existing) {
+            Write-EventLog -LogName Application -Source "CertImport" -EventId 1001 `
+                -EntryType Information -Message "Importing certificate: $($CertFile.Name)"
+            $store.Add($cert)
+        }
+        else {
+            Write-EventLog -LogName Application -Source "CertImport" -EventId 1002 `
+                -EntryType Information -Message "Certificate already exists: $($CertFile.Name)"
+        }
+    }
+    catch {
+        Write-EventLog -LogName Application -Source "CertImport" -EventId 1003 `
+            -EntryType Warning -Message "Failed to process $($CertFile.Name) - $_"
+    }
+}
+
+$store.Close()
+"""
+
 
 sys.path.append(SOON_PATH)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "soon_aip.settings")
+os.environ.setdefault("SoonSECRET_KEY", "coming soon")
+os.environ.setdefault("SoonMachine", "coming soon")
+os.environ.setdefault("SoonADAdmin", "coming soon")
+os.environ.setdefault("SoonADPassword", "coming soon")
+os.environ.setdefault("SoonKeys", "coming soon")
 django.setup()
 
 from user.models import CustomUser as CU
+from soon.utils import Fixer
+from soon import GPO
 
 
 def ask_yes_no(question: str) -> bool:
@@ -218,12 +271,12 @@ def create_env_file(secret_key, controller_fdqn, username, password, certificate
         print(f"Backup created: {backup_path}")
 
     with open(ENV_PATH, "w") as env_file:
-        env_file.write(f"SoonSECRET_KEY = \"{secret_key}\"\n")
+        env_file.write(f"SoonSECRET_KEY=\"{secret_key}\"\n")
         if controller_fdqn is not None:
-            env_file.write(f"SoonMachine = \"{controller_fdqn}\"\n")
-        env_file.write(f"SoonADAdmin = \"{username}\"\n")
-        env_file.write(f"SoonADPassword = \"{password}\"\n")
-        env_file.write(f"SoonKeys = \"{certificates_path}\"\n")
+            env_file.write(f"SoonMachine=\"{controller_fdqn}\"\n")
+        env_file.write(f"SoonADAdmin=\"{username}\"\n")
+        env_file.write(f"SoonADPassword=\"{password}\"\n")
+        env_file.write(f"SoonKeys=\"{certificates_path}\"\n")
 
 
 def make_migrations():
@@ -253,10 +306,10 @@ def get_superuser_username() -> str:
         print("Username cannot be empty.")
 
 
-def get_superuser_password() -> str:
+def get_superuser_password(msg) -> str:
     """Asks for superuser password and ensures it is provided."""
     while True:
-        password = getpass.getpass("Enter Superuser's password: ").strip()
+        password = getpass.getpass(msg).strip()
         if password:
             return password
         print("Password cannot be empty.")
@@ -279,9 +332,51 @@ def configure_django():
     make_migrations()
     apply_migrations()
     superuser_username = get_superuser_username()
-    superuser_password = get_superuser_password()
+    superuser_password = get_superuser_password("Enter Superuser's password: ")
+    superuser_password_repeat = get_superuser_password("Enter Superuser's password (repeat): ")
+    while superuser_password != superuser_password_repeat:
+        print("Passwords does not match")
+        superuser_password = get_superuser_password("Enter Superuser's password: ")
+        superuser_password_repeat = get_superuser_password("Enter Superuser's password (repeat): ")
     superuser_email = get_superuser_email()
     create_superuser(superuser_username, superuser_email, superuser_password)
+
+
+def enable_and_start_service():
+    try:
+        subprocess.run(
+            ["systemctl", "enable", "soon"],
+            check=True
+        )
+
+        subprocess.run(
+            ["systemctl", "start", "soon"],
+            check=True
+        )
+    except subprocess.CalledProcessError as e:
+        print(f"Error while managing service 'soon': {e}")
+
+
+def create_certification(keys_dir, the_gpo):
+    copy_public = the_gpo.local_path / "Machine" / "keys"
+    if not copy_public.exists():
+        copy_public.mkdir()
+
+    _ = Fixer.create_keys("soon", keys_dir, copy_public=copy_public)
+
+
+def create_certifier_gpo(username, password, controller_fdqn):
+    gpo = GPO(username, password, machine=controller_fdqn)
+    the_gpo = gpo.create("SoonGlobalCertifier")
+    dc_line = ",".join([each for each in the_gpo.DN.split(",") if each.startswith("DC")])
+    gpo.link(the_gpo.CN, dc_line)
+
+    with tempfile.NamedTemporaryFile(prefix="soon_pic_", suffix=".ps1", delete=True) as tmp:
+        tmp.write(f"{THE_CERTIFIER_SCRIPT}\n".encode("utf8"))
+        tmp.flush()
+        gpo.add_script(the_gpo.CN, "Startup", Path(tmp.name))
+
+    return the_gpo
 
 
 def main():
@@ -289,8 +384,8 @@ def main():
     print("")
     print("1) Make sure TLS_REQCERT is allowed for ldap connections")
     print(f"The file `{LDAP_CONF}` will be modified. A backup will be created before each edit")
-    yes = ask_yes_no("Allow the modification? If you want to modify it yourself type `n/no`")
-    if yes:
+    yes_ldaps = ask_yes_no("Allow the modification? If you want to modify it yourself type `n/no`")
+    if yes_ldaps:
         ensure_tls_reqcert_allow()
     print()
 
@@ -302,21 +397,37 @@ def main():
     print("\tSoonADAdmin=\"your_administrator_username\"")
     print("\tSoonADPassword=\"your_administrator_password\"")
     print("\tSoonKeys=\"/opt/soon/keys\"")
-    yes = ask_yes_no("Allow the modification? If you want to modify it yourself type `n/no`")
-    if yes:
+    yes_configuration = ask_yes_no("Allow the modification? If you want to modify it yourself type `n/no`")
+    if yes_configuration:
         secret_key = get_secret_key()
         controller_fdqn, username, password = get_controller_user_password_safe()
         certificates_path = get_certificates_path()
         create_env_file(secret_key, controller_fdqn, username, password, certificates_path)
+        print()
+        print("2.1) Create Certification and Certifier GPO")
+        print("Will create a certification via openssl.")
+        print("Certification would ve used for logon/logoff scripts signing.")
+        yes_certify = ask_yes_no("Allow creation of the certification? If you want to do it yourself type `n/no`")
+        if yes_certify:
+            the_gpo = create_certifier_gpo(username, password, controller_fdqn)
+            create_certification(certificates_path, the_gpo)
+
     print()
 
     print("3) Configure Django server")
     print("Will `makemigrations`, `migrate` and `createsuperuser`")
     print("You can use Super User created here to login to django admin panel http://[THIS-MACHINES-IP]:8006/admin")
     print("Create user's and copy their apikeys.")
-    yes = ask_yes_no("Allow configuration? If you want to configure it yourself type `n/no`")
-    if yes:
+    yes_django_configuration = ask_yes_no("Allow configuration? If you want to configure it yourself type `n/no`")
+    if yes_django_configuration:
         configure_django()
+    print()
+
+    print("4) Soon Service")
+    print("Will enable and start the soon's service")
+    yes_services = ask_yes_no("Allow to enable and start soon service? If you want to do it yourself type `n/no`")
+    if yes_services:
+        enable_and_start_service()
     print()
 
 

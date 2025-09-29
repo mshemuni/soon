@@ -845,7 +845,8 @@ class Fixer:
     @staticmethod
     def create_keys(name: str,
                     keys_dir: Union[str, Path],
-                    pfx_password: Optional[str] = None) -> str:
+                    pfx_password: Optional[str] = None,
+                    copy_public: Optional[Union[str, Path]] = None) -> str:
         """
         Generate private key, certificate, and PFX bundle for code signing,
         storing them under keys_dir/private, keys_dir/public, keys_dir/pfx.
@@ -858,6 +859,8 @@ class Fixer:
             Root directory containing private/, public/, and pfx/ subfolders.
         pfx_password : str, optional
             Password for the .pfx bundle. If None, no password is used.
+        copy_public : str, optional
+            Path to copy the public key to
 
         Returns
         -------
@@ -938,6 +941,9 @@ class Fixer:
             ], check=True)
         except subprocess.CalledProcessError as e:
             raise IdentityException(f"OpenSSL pkcs12 export failed: {e}")
+
+        if copy_public is not None:
+            shutil.copyfile(crt_file, Path(copy_public) / crt_file.name)
 
         return name
 

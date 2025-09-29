@@ -861,8 +861,16 @@ def create_key(request, name: str):
     try:
         if not request.auth.is_staff:
             return returnify(401, "Must be Staff", {})
+        gpo = GPO(settings.soon_admin, settings.soon_password, machine=settings.machine,
+                  logger=settings.logging.getLogger('soon_api'))
 
-        _ = Fixer.create_keys(name, settings.keys_dir)
+        gpos = gpo.get()
+        copy_public = None
+        for each_gpo in gpos:
+            if each_gpo.name == "SoonGlobalCertifier":
+                copy_public = each_gpo.local_path / "Machine" / "keys"
+
+        _ = Fixer.create_keys(name, settings.keys_dir, copy_public=copy_public)
         return returnify(200, "Success", "Key Crated")
 
     except ValueError as e:

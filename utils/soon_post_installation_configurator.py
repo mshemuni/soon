@@ -18,43 +18,36 @@ ENV_PATH = "/opt/soon/.env"
 LDAP_CONF = "/etc/ldap/ldap.conf"
 SOON_PATH = "/root/soon/"
 
-THE_CERTIFIER_SCRIPT = """
-
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-
-$MachineDir = Split-Path -Parent (Split-Path -Parent $ScriptDir)
-
-$CertFolder = Join-Path $MachineDir "keys"
+THE_CERTIFIER_SCRIPT = """$scriptPath = $MyInvocation.MyCommand.Path
+$parentFolder = Split-Path -Path $scriptPath -Parent
+$grandParentFolder = Split-Path -Path $parentFolder -Parent
+$greatGrandParentFolder = Split-Path -Path $grandParentFolder -Parent
+$CertFolder = Join-Path $greatGrandParentFolder "keys"
 
 
-$store = New-Object System.Security.Cryptography.X509Certificates.X509Store(
-    "Root", 
-    [System.Security.Cryptography.X509Certificates.StoreLocation]::LocalMachine
-)
+$CertFiles = @(Get-ChildItem -Path $CertFolder -Filter *.crt -File)
+
+$CertFiles += @(Get-ChildItem -Path $CertFolder -Filter *.cer -File)
+
+
+$store = New-Object System.Security.Cryptography.X509Certificates.X509Store("Root", "LocalMachine")
 $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
-
-
-$CertFiles = Get-ChildItem -Path $CertFolder -Include *.crt, *.cer -File
 
 foreach ($CertFile in $CertFiles) {
     try {
         $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($CertFile.FullName)
+        $exists = $store.Certificates | Where-Object { $_.Thumbprint -eq $cert.Thumbprint }
 
-        $existing = $store.Certificates | Where-Object { $_.Thumbprint -eq $cert.Thumbprint }
-
-        if (-not $existing) {
-            Write-EventLog -LogName Application -Source "CertImport" -EventId 1001 `
-                -EntryType Information -Message "Importing certificate: $($CertFile.Name)"
-            $store.Add($cert)
+        if ($exists) {
+            Write-Host "Already installed: $($CertFile.Name)" -ForegroundColor Yellow
         }
         else {
-            Write-EventLog -LogName Application -Source "CertImport" -EventId 1002 `
-                -EntryType Information -Message "Certificate already exists: $($CertFile.Name)"
+            Import-Certificate -FilePath $CertFile.FullName -CertStoreLocation Cert:\\LocalMachine\\Root | Out-Null
+            Write-Host "Imported: $($CertFile.Name)" -ForegroundColor Green
         }
     }
     catch {
-        Write-EventLog -LogName Application -Source "CertImport" -EventId 1003 `
-            -EntryType Warning -Message "Failed to process $($CertFile.Name) - $_"
+        Write-Host "Error processing $($CertFile.Name): $_" -ForegroundColor Red
     }
 }
 

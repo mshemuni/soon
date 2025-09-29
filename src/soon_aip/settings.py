@@ -127,15 +127,22 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': '/var/log/soon_api.log',
+            'formatter': 'verbose',
+            'encoding': 'utf-8',
+        },
     },
     'loggers': {
         'soon_api': {
-            'handlers': ['console'],
+            'handlers': ['console', 'file'],
             'level': 'DEBUG',
             'propagate': False,
         },
     },
 }
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/

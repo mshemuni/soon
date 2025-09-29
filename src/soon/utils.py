@@ -943,7 +943,7 @@ class Fixer:
             raise IdentityException(f"OpenSSL pkcs12 export failed: {e}")
 
         if copy_public is not None:
-            shutil.copyfile(crt_file, copy_public)
+            shutil.copyfile(crt_file, Path(copy_public) / crt_file.name)
 
         return name
 

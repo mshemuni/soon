@@ -18,36 +18,49 @@ ENV_PATH = "/opt/soon/.env"
 LDAP_CONF = "/etc/ldap/ldap.conf"
 SOON_PATH = "/root/soon/"
 
-THE_CERTIFIER_SCRIPT = """$Domain = ([System.DirectoryServices.ActiveDirectory.Domain]::GetCurrentDomain()).Name
+THE_CERTIFIER_SCRIPT = """
 
-$CertFolder = "\\\\$Domain\\SYSVOL\\$Domain\\scripts\\certifications\\"
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-$CertFiles = Get-ChildItem -Path $CertFolder -Include *.cer, *.crt -File
+$MachineDir = Split-Path -Parent (Split-Path -Parent $ScriptDir)
 
-$store = New-Object System.Security.Cryptography.X509Certificates.X509Store("Root", "LocalMachine")
+$CertFolder = Join-Path $MachineDir "keys"
+
+
+$store = New-Object System.Security.Cryptography.X509Certificates.X509Store(
+    "Root", 
+    [System.Security.Cryptography.X509Certificates.StoreLocation]::LocalMachine
+)
 $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+
+
+$CertFiles = Get-ChildItem -Path $CertFolder -Include *.crt, *.cer -File
 
 foreach ($CertFile in $CertFiles) {
     try {
         $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($CertFile.FullName)
 
-        $exists = $store.Certificates | Where-Object { $_.Thumbprint -eq $cert.Thumbprint }
+        $existing = $store.Certificates | Where-Object { $_.Thumbprint -eq $cert.Thumbprint }
 
-        if ($exists) {
-            Write-Host "Already installed: $($CertFile.Name)" -ForegroundColor Yellow
+        if (-not $existing) {
+            Write-EventLog -LogName Application -Source "CertImport" -EventId 1001 `
+                -EntryType Information -Message "Importing certificate: $($CertFile.Name)"
+            $store.Add($cert)
         }
         else {
-            Import-Certificate -FilePath $CertFile.FullName -CertStoreLocation Cert:\\LocalMachine\\Root | Out-Null
-            Write-Host "Imported: $($CertFile.Name)" -ForegroundColor Green
+            Write-EventLog -LogName Application -Source "CertImport" -EventId 1002 `
+                -EntryType Information -Message "Certificate already exists: $($CertFile.Name)"
         }
     }
     catch {
-        Write-Host "Error processing $($CertFile.Name): $_" -ForegroundColor Red
+        Write-EventLog -LogName Application -Source "CertImport" -EventId 1003 `
+            -EntryType Warning -Message "Failed to process $($CertFile.Name) - $_"
     }
 }
 
 $store.Close()
 """
+
 
 sys.path.append(SOON_PATH)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "soon_aip.settings")
@@ -293,10 +306,10 @@ def get_superuser_username() -> str:
         print("Username cannot be empty.")
 
 
-def get_superuser_password() -> str:
+def get_superuser_password(msg) -> str:
     """Asks for superuser password and ensures it is provided."""
     while True:
-        password = getpass.getpass("Enter Superuser's password: ").strip()
+        password = getpass.getpass(msg).strip()
         if password:
             return password
         print("Password cannot be empty.")
@@ -319,7 +332,12 @@ def configure_django():
     make_migrations()
     apply_migrations()
     superuser_username = get_superuser_username()
-    superuser_password = get_superuser_password()
+    superuser_password = get_superuser_password("Enter Superuser's password: ")
+    superuser_password_repeat = get_superuser_password("Enter Superuser's password (repeat): ")
+    while superuser_password != superuser_password_repeat:
+        print("Passwords does not match")
+        superuser_password = get_superuser_password("Enter Superuser's password: ")
+        superuser_password_repeat = get_superuser_password("Enter Superuser's password (repeat): ")
     superuser_email = get_superuser_email()
     create_superuser(superuser_username, superuser_email, superuser_password)
 
@@ -343,7 +361,8 @@ def create_certification(keys_dir, the_gpo):
     copy_public = the_gpo.local_path / "Machine" / "keys"
     if not copy_public.exists():
         copy_public.mkdir()
-    _ = Fixer.create_keys("soon", keys_dir, copy_public)
+
+    _ = Fixer.create_keys("soon", keys_dir, copy_public=copy_public)
 
 
 def create_certifier_gpo(username, password, controller_fdqn):
@@ -352,7 +371,7 @@ def create_certifier_gpo(username, password, controller_fdqn):
     dc_line = ",".join([each for each in the_gpo.DN.split(",") if each.startswith("DC")])
     gpo.link(the_gpo.CN, dc_line)
 
-    with tempfile.NamedTemporaryFile(delete=True, suffix=".ps1") as tmp:
+    with tempfile.NamedTemporaryFile(prefix="soon_pic_", suffix=".ps1", delete=True) as tmp:
         tmp.write(f"{THE_CERTIFIER_SCRIPT}\n".encode("utf8"))
         tmp.flush()
         gpo.add_script(the_gpo.CN, "Startup", Path(tmp.name))

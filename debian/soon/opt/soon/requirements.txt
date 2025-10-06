@@ -1,3 +1,0 @@
-django==5.2.6
-django-ninja==1.4.3
-ldap3==2.9.1

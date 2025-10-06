@@ -1,3 +1,9 @@
 #!/usr/bin/make -f
+# -*- makefile -*-
+
 %:
 	dh $@
+
+# Optional: override dh_installsystemd if you want to customize installation
+override_dh_installsystemd:
+	dh_installsystemd --name soon

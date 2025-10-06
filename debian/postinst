@@ -1,14 +1,14 @@
 #!/bin/bash
 # Make sure scripts are executable
-chmod +x /opt/soon/manage.py
+chmod +x /usr/share/soon/manage.py
 
 # Optionally, create a virtual environment
-python3 -m venv /opt/soon/venv --system-site-packages
-/opt/soon/venv/bin/python -m pip install -r /opt/soon/requirements.txt
+python3 -m venv /usr/share/soon/venv --system-site-packages
+/opt/soon/venv/bin/python -m pip install -r /usr/share/soon/requirements.txt
 
 
 echo "########################################"
 echo "To configure soon please run:"
-echo "/opt/soon/venv/bin/python /opt/soon/soon_post_installation_configurator.py"
+echo "/usr/share/soon/venv/bin/python /usr/share/soon/soon_post_installation_configurator.py"
 echo "########################################"
 

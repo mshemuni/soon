@@ -17,9 +17,9 @@ from django.core.management.utils import get_random_secret_key
 from django.core.management import call_command
 from ldap3 import Server, Connection, ALL, SUBTREE
 
-ENV_PATH = "/opt/soon/.env"
+SOON_PATH = "/usr/share/soon/"
+ENV_PATH = f"{SOON_PATH}/.env"
 LDAP_CONF = "/etc/ldap/ldap.conf"
-SOON_PATH = "/root/soon/"
 
 THE_CERTIFIER_SCRIPT = """$scriptPath = $MyInvocation.MyCommand.Path
 $parentFolder = Split-Path -Path $scriptPath -Parent
@@ -58,7 +58,6 @@ $store.Close()
 """
 
 language = locale.getdefaultlocale()[0]
-
 
 translation = gettext.translation(
     domain="messages",
@@ -405,7 +404,7 @@ def main():
     print(_("\tSoonMachine=\"controller.domain.ext\" # If available"))
     print(_("\tSoonADAdmin=\"your_administrator_username\""))
     print(_("\tSoonADPassword=\"your_administrator_password\""))
-    print(_("\tSoonKeys=\"/opt/soon/keys\""))
+    print(_(f"\tSoonKeys=\"{SOON_PATH}keys\""))
     yes_configuration = ask_yes_no(_("Allow the modification? If you want to modify it yourself type `n/no`"))
     if yes_configuration:
         secret_key = get_secret_key()

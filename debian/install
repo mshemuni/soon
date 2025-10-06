@@ -1,3 +1,4 @@
 src/* opt/soon/
 utils/soon_post_installation_configurator.py opt/soon/
 utils/soon.service lib/systemd/system/
+utils/locale/* opt/soon/utils/locale/

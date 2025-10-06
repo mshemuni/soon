@@ -1,3 +1,6 @@
+import gettext
+import locale
+
 import getpass
 import os, sys
 import re
@@ -54,6 +57,19 @@ foreach ($CertFile in $CertFiles) {
 $store.Close()
 """
 
+language = locale.getdefaultlocale()[0]
+
+
+translation = gettext.translation(
+    domain="messages",
+    localedir="locale",
+    languages=[language],
+    fallback=True
+)
+translation.install()
+
+# Shortcut
+_ = translation.gettext
 
 sys.path.append(SOON_PATH)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "soon_aip.settings")
@@ -72,12 +88,12 @@ from soon import GPO
 def ask_yes_no(question: str) -> bool:
     while True:
         answer = input(f"{question} (y/n): ").strip().lower()
-        if answer.upper() in ["YES", "Y"]:
+        if answer.upper() in ["YES", "Y", "EVET", "E"]:
             return True
-        elif answer.upper() in ["NO", "N"]:
+        elif answer.upper() in ["NO", "N", "HAYIR", "H"]:
             return False
         else:
-            print("Please answer with 'y/yes' or 'n/no'.")
+            print(_("Please answer with 'y/yes' or 'n/no'."))
 
 
 def ensure_tls_reqcert_allow():
@@ -116,28 +132,28 @@ def generate_secret_key() -> str:
 
 def get_secret_key() -> str:
     """Get a Django SECRET_KEY."""
-    secret_key = input("Enter Django Secret Key (leave empty to generate one): ")
+    secret_key = input(_("Enter Django Secret Key (leave empty to generate one): "))
     if secret_key:
         return secret_key
-    print("No secret key provided, generating one now")
+    print(_("No secret key provided, generating one now"))
     return generate_secret_key()
 
 
 def get_administrator_username() -> str:
     """Asks for administrator username."""
-    username = input("Enter Administrator's username: ")
+    username = input(_("Enter Administrator's username: "))
     return username
 
 
 def get_administrator_password() -> str:
     """Asks for administrator password."""
-    password = getpass.getpass("Enter Administrator's password: ")
+    password = getpass.getpass(_("Enter Administrator's password: "))
     return password
 
 
 def get_certificates_path() -> str:
     """Asks for path to certificates directory."""
-    certificates_path = input("Enter path where the certificate files are stored: ")
+    certificates_path = input(_("Enter path where the certificate files are stored: "))
     path = Path(certificates_path)
     if not path.exists():
         path.mkdir()
@@ -147,7 +163,7 @@ def get_certificates_path() -> str:
 
 def get_controller() -> Optional[str]:
     """Asks for controller."""
-    controller = input("Enter controller (Leave empty to not set): ")
+    controller = input(_("Enter controller (Leave empty to not set): "))
     if controller:
         return controller
     return None
@@ -202,7 +218,7 @@ def get_controller_safe() -> Optional[str]:
     """Gets the FDQN controller name safely..."""
     controller_fqdn = get_controller()
     while controller_fqdn is not None and not is_domain_reachable(controller_fqdn):
-        print("FDQN is not reachable")
+        print(_("FDQN is not reachable"))
         controller_fqdn = get_controller()
 
     return controller_fqdn
@@ -214,7 +230,7 @@ def get_user_name_password_safe(controller_fqdn: Optional[str] = None):
     def get_user():
         username = get_administrator_username()
         while not username:
-            print("Username is not set")
+            print(_("Username is not set"))
             username = get_administrator_username()
 
         return username
@@ -222,7 +238,7 @@ def get_user_name_password_safe(controller_fqdn: Optional[str] = None):
     def get_password():
         password = get_administrator_password()
         while not password:
-            print("Password is not set")
+            print(_("Password is not set"))
             password = get_administrator_password()
 
         return password
@@ -233,7 +249,7 @@ def get_user_name_password_safe(controller_fqdn: Optional[str] = None):
     if controller_fqdn is not None:
         connection = check_ad_connection(controller_fqdn, username, password)
         while not connection:
-            print("Connection failed")
+            print(_("Connection failed"))
             username = get_user()
             password = get_password()
             connection = check_ad_connection(controller_fqdn, username, password)
@@ -249,54 +265,54 @@ def get_controller_user_password_safe():
 
 
 def create_env_file(secret_key, controller_fdqn, username, password, certificates_path):
-    print("File's content is:")
-    print(f"\tSoonSECRET_KEY = \"{secret_key}\"")
+    print(_("File's content is:"))
+    print(_(f"\tSoonSECRET_KEY = \"{secret_key}\""))
     if controller_fdqn is not None:
-        print(f"\tSoonMachine = \"{controller_fdqn}\"")
-    print(f"\tSoonADAdmin = \"{username}\"")
-    print(f"\tSoonADPassword = \"{password}\"")
-    print(f"\tSoonKeys = \"{certificates_path}\"")
+        print(_(f"\tSoonMachine = \"{controller_fdqn}\""))
+    print(_(f"\tSoonADAdmin = \"{username}\""))
+    print(_(f"\tSoonADPassword = \"***\""))
+    print(_(f"\tSoonKeys = \"{certificates_path}\""))
 
     if os.path.exists(ENV_PATH):
         unix_time = int(time.time())
         backup_path = f"{ENV_PATH}.backup_{unix_time}"
         shutil.copy2(ENV_PATH, backup_path)
-        print(f"Backup created: {backup_path}")
+        print(_(f"Backup created: {backup_path}"))
 
     with open(ENV_PATH, "w") as env_file:
-        env_file.write(f"SoonSECRET_KEY=\"{secret_key}\"\n")
+        env_file.write(_(f"SoonSECRET_KEY=\"{secret_key}\"\n"))
         if controller_fdqn is not None:
-            env_file.write(f"SoonMachine=\"{controller_fdqn}\"\n")
-        env_file.write(f"SoonADAdmin=\"{username}\"\n")
-        env_file.write(f"SoonADPassword=\"{password}\"\n")
-        env_file.write(f"SoonKeys=\"{certificates_path}\"\n")
+            env_file.write(_(f"SoonMachine=\"{controller_fdqn}\"\n"))
+        env_file.write(_(f"SoonADAdmin=\"{username}\"\n"))
+        env_file.write(_(f"SoonADPassword=\"{password}\"\n"))
+        env_file.write(_(f"SoonKeys=\"{certificates_path}\"\n"))
 
 
 def make_migrations():
-    print("Making migrations...")
+    print(_("Making migrations..."))
     call_command('makemigrations')
 
 
 def apply_migrations():
-    print("Migrating...")
+    print(_("Migrating..."))
     call_command('migrate')
 
 
 def create_superuser(username, email, password):
-    print("Creating superuser...")
+    print(_("Creating superuser..."))
     if not CU.objects.filter(username=username).exists():
         CU.objects.create_superuser(username=username, email=email, password=password)
     else:
-        print(f"Superuser '{username}' already exists.")
+        print(_(f"Superuser '{username}' already exists."))
 
 
 def get_superuser_username() -> str:
     """Asks for superuser username and ensures it is provided."""
     while True:
-        username = input("Enter Superuser's username: ").strip()
+        username = input(_("Enter Superuser's username: ")).strip()
         if username:
             return username
-        print("Username cannot be empty.")
+        print(_("Username cannot be empty."))
 
 
 def get_superuser_password(msg) -> str:
@@ -305,18 +321,18 @@ def get_superuser_password(msg) -> str:
         password = getpass.getpass(msg).strip()
         if password:
             return password
-        print("Password cannot be empty.")
+        print(_("Password cannot be empty."))
 
 
 def get_superuser_email() -> str:
     """Asks for superuser email and ensures it is valid."""
     email_pattern = r'^[^@]+@[^@]+\.[^@]+$'
     while True:
-        email = input("Enter Superuser's email: ").strip()
+        email = input(_("Enter Superuser's email: ")).strip()
         if not email:
-            print("Email cannot be empty.")
+            print(_("Email cannot be empty."))
         elif not re.match(email_pattern, email):
-            print("Invalid email format. Example: user@example.com")
+            print(_("Invalid email format. Example: user@example.com"))
         else:
             return email
 
@@ -325,12 +341,12 @@ def configure_django():
     make_migrations()
     apply_migrations()
     superuser_username = get_superuser_username()
-    superuser_password = get_superuser_password("Enter Superuser's password: ")
-    superuser_password_repeat = get_superuser_password("Enter Superuser's password (repeat): ")
+    superuser_password = get_superuser_password(_("Enter Superuser's password: "))
+    superuser_password_repeat = get_superuser_password(_("Enter Superuser's password (repeat): "))
     while superuser_password != superuser_password_repeat:
-        print("Passwords does not match")
-        superuser_password = get_superuser_password("Enter Superuser's password: ")
-        superuser_password_repeat = get_superuser_password("Enter Superuser's password (repeat): ")
+        print(_("Passwords does not match"))
+        superuser_password = get_superuser_password(_("Enter Superuser's password: "))
+        superuser_password_repeat = get_superuser_password(_("Enter Superuser's password (repeat): "))
     superuser_email = get_superuser_email()
     create_superuser(superuser_username, superuser_email, superuser_password)
 
@@ -347,7 +363,7 @@ def enable_and_start_service():
             check=True
         )
     except subprocess.CalledProcessError as e:
-        print(f"Error while managing service 'soon': {e}")
+        print(_(f"Error while managing service 'soon': {e}"))
 
 
 def create_certification(keys_dir, the_gpo):
@@ -373,45 +389,45 @@ def create_certifier_gpo(username, password, controller_fdqn):
 
 
 def main():
-    print("Welcome to soon post installation configuration.")
-    print("")
-    print("1) Make sure TLS_REQCERT is allowed for ldap connections")
-    print(f"The file `{LDAP_CONF}` will be modified. A backup will be created before each edit")
-    yes_ldaps = ask_yes_no("Allow the modification? If you want to modify it yourself type `n/no`")
+    print(_("Welcome to soon post installation configuration."))
+    print()
+    print(_("1) Make sure TLS_REQCERT is allowed for ldap connections"))
+    print(_(f"The file `{LDAP_CONF}` will be modified. A backup will be created before each edit"))
+    yes_ldaps = ask_yes_no(_("Allow the modification? If you want to modify it yourself type `n/no`"))
     if yes_ldaps:
         ensure_tls_reqcert_allow()
     print()
 
-    print(f"2) Create an env file here: `{ENV_PATH}`. A backup will be created before each edit")
-    print("")
-    print("The file's contents will look like:")
-    print("\tSoonSECRET_KEY=\"your_django_secret_key\"")
-    print("\tSoonMachine=\"controller.domain.ext\" # If available")
-    print("\tSoonADAdmin=\"your_administrator_username\"")
-    print("\tSoonADPassword=\"your_administrator_password\"")
-    print("\tSoonKeys=\"/opt/soon/keys\"")
-    yes_configuration = ask_yes_no("Allow the modification? If you want to modify it yourself type `n/no`")
+    print(_(f"2) Create an env file here: `{ENV_PATH}`. A backup will be created before each edit"))
+    print()
+    print(_("The file's contents will look like:"))
+    print(_("\tSoonSECRET_KEY=\"your_django_secret_key\""))
+    print(_("\tSoonMachine=\"controller.domain.ext\" # If available"))
+    print(_("\tSoonADAdmin=\"your_administrator_username\""))
+    print(_("\tSoonADPassword=\"your_administrator_password\""))
+    print(_("\tSoonKeys=\"/opt/soon/keys\""))
+    yes_configuration = ask_yes_no(_("Allow the modification? If you want to modify it yourself type `n/no`"))
     if yes_configuration:
         secret_key = get_secret_key()
         controller_fdqn, username, password = get_controller_user_password_safe()
         certificates_path = get_certificates_path()
         create_env_file(secret_key, controller_fdqn, username, password, certificates_path)
         print()
-        print("2.1) Create Certification and Certifier GPO")
-        print("Will create a certification via openssl.")
-        print("Certification would ve used for logon/logoff scripts signing.")
-        yes_certify = ask_yes_no("Allow creation of the certification? If you want to do it yourself type `n/no`")
+        print(_("2.1) Create Certification and Certifier GPO"))
+        print(_("Will create a certification via openssl."))
+        print(_("Certification would ve used for logon/logoff scripts signing."))
+        yes_certify = ask_yes_no(_("Allow creation of the certification? If you want to do it yourself type `n/no`"))
         if yes_certify:
             the_gpo = create_certifier_gpo(username, password, controller_fdqn)
             create_certification(certificates_path, the_gpo)
 
     print()
 
-    print("3) Configure Django server")
-    print("Will `makemigrations`, `migrate` and `createsuperuser`")
-    print("You can use Super User created here to login to django admin panel http://[THIS-MACHINES-IP]:8006/admin")
+    print(_("3) Configure Django server"))
+    print(_("Will `makemigrations`, `migrate` and `createsuperuser`"))
+    print(_("You can use Super User created here to login to django admin panel http://[THIS-MACHINES-IP]:8006/admin"))
     print("Create user's and copy their apikeys.")
-    yes_django_configuration = ask_yes_no("Allow configuration? If you want to configure it yourself type `n/no`")
+    yes_django_configuration = ask_yes_no(_("Allow configuration? If you want to configure it yourself type `n/no`"))
     if yes_django_configuration:
         configure_django()
     print()

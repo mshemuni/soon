@@ -1,0 +1,234 @@
+# Turkish translations for Soon post-installation script.
+# Copyright (C) 2025 Soon Developers
+# This file is distributed under the same license as the Soon package.
+# Mohammad Shameoni Niaei <email@example.com>, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Soon 1.0\n"
+"Report-Msgid-Bugs-To: support@soon.local\n"
+"POT-Creation-Date: 2025-10-06 10:00+0300\n"
+"PO-Revision-Date: 2025-10-06 10:00+0300\n"
+"Last-Translator: Mohammad Shameoni Niaei <email@example.com>\n"
+"Language-Team: Turkish\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: script:ask_yes_no
+msgid "Please answer with 'y/yes' or 'n/no'."
+msgstr "Lütfen 'e/evet' veya 'h/hayır' ile cevap verin."
+
+#: script:get_secret_key
+msgid "Enter Django Secret Key (leave empty to generate one): "
+msgstr "Django Secret Key girin (otomatik oluşturmak için boş bırakın): "
+
+#: script:get_secret_key
+msgid "No secret key provided, generating one now"
+msgstr "Secret key girilmedi, şimdi oluşturuluyor"
+
+#: script:get_administrator_username
+msgid "Enter Administrator's username: "
+msgstr "Yönetici kullanıcı adını girin: "
+
+#: script:get_administrator_password
+msgid "Enter Administrator's password: "
+msgstr "Yönetici parolasını girin: "
+
+#: script:get_certificates_path
+msgid "Enter path where the certificate files are stored: "
+msgstr "Sertifika dosyalarının bulunduğu yolu girin: "
+
+#: script:get_controller
+msgid "Enter controller (Leave empty to not set): "
+msgstr "Controller'ı girin (ayarlamak istemiyorsanız boş bırakın): "
+
+#: script:get_controller_safe
+msgid "FDQN is not reachable"
+msgstr "FDQN'e erişilemiyor"
+
+#: script:get_user_name_password_safe
+msgid "Username is not set"
+msgstr "Kullanıcı adı ayarlı değil"
+
+#: script:get_user_name_password_safe
+msgid "Password is not set"
+msgstr "Parola ayarlı değil"
+
+#: script:get_user_name_password_safe
+msgid "Connection failed"
+msgstr "Bağlantı başarısız"
+
+#: script:create_env_file
+msgid "File's content is:"
+msgstr "Dosyanın içeriği:"
+
+#: script:create_env_file
+msgid "\tSoonSECRET_KEY = \"{secret_key}\""
+msgstr "\tSoonSECRET_KEY = \"{secret_key}\""
+
+#: script:create_env_file
+msgid "\tSoonMachine = \"{controller_fdqn}\""
+msgstr "\tSoonMachine = \"{controller_fdqn}\""
+
+#: script:create_env_file
+msgid "\tSoonADAdmin = \"{username}\""
+msgstr "\tSoonADAdmin = \"{username}\""
+
+#: script:create_env_file
+msgid "\tSoonADPassword = \"***\""
+msgstr "\tSoonADPassword = \"***\""
+
+#: script:create_env_file
+msgid "\tSoonKeys = \"{certificates_path}\""
+msgstr "\tSoonKeys = \"{certificates_path}\""
+
+#: script:create_env_file
+msgid "Backup created: {backup_path}"
+msgstr "Yedek oluşturuldu: {backup_path}"
+
+#: script:make_migrations
+msgid "Making migrations..."
+msgstr "Migration dosyaları oluşturuluyor..."
+
+#: script:apply_migrations
+msgid "Migrating..."
+msgstr "Veritabanı migrasyonu uygulanıyor..."
+
+#: script:create_superuser
+msgid "Creating superuser..."
+msgstr "Süper kullanıcı oluşturuluyor..."
+
+#: script:create_superuser
+msgid "Superuser '{username}' already exists."
+msgstr "'{username}' adlı süper kullanıcı zaten mevcut."
+
+#: script:get_superuser_username
+msgid "Enter Superuser's username: "
+msgstr "Süper kullanıcı kullanıcı adını girin: "
+
+#: script:get_superuser_password
+msgid "Enter Superuser's password: "
+msgstr "Süper kullanıcı parolasını girin: "
+
+#: script:get_superuser_password
+msgid "Enter Superuser's password (repeat): "
+msgstr "Süper kullanıcı parolasını tekrar girin: "
+
+#: script:get_superuser_password
+msgid "Password cannot be empty."
+msgstr "Parola boş olamaz."
+
+#: script:get_superuser_username
+msgid "Username cannot be empty."
+msgstr "Kullanıcı adı boş olamaz."
+
+#: script:get_superuser_email
+msgid "Enter Superuser's email: "
+msgstr "Süper kullanıcı e-posta adresini girin: "
+
+#: script:get_superuser_email
+msgid "Email cannot be empty."
+msgstr "E-posta boş olamaz."
+
+#: script:get_superuser_email
+msgid "Invalid email format. Example: user@example.com"
+msgstr "Geçersiz e-posta formatı. Örnek: user@example.com"
+
+#: script:configure_django
+msgid "Passwords does not match"
+msgstr "Parolalar eşleşmiyor"
+
+#: script:enable_and_start_service
+msgid "Error while managing service 'soon': {e}"
+msgstr "soon servisi yönetilirken hata oluştu: {e}"
+
+#: script:main
+msgid "Welcome to soon post installation configuration."
+msgstr "Soon kurulum sonrası yapılandırmaya hoş geldiniz."
+
+#: script:main
+msgid "1) Make sure TLS_REQCERT is allowed for ldap connections"
+msgstr "1) LDAP bağlantıları için TLS_REQCERT'in 'allow' olarak ayarlandığından emin olun"
+
+#: script:main
+msgid "The file `{LDAP_CONF}` will be modified. A backup will be created before each edit"
+msgstr "`{LDAP_CONF}` dosyası değiştirilecek. Her düzenlemeden önce yedek oluşturulacaktır"
+
+#: script:main
+msgid "Allow the modification? If you want to modify it yourself type `n/no`"
+msgstr "Değişikliğe izin verilsin mi? Kendi başınıza düzenlemek isterseniz `n/no` yazın"
+
+#: script:main
+msgid "2) Create an env file here: `{ENV_PATH}`. A backup will be created before each edit"
+msgstr "2) Burada bir env dosyası oluşturulacak: `{ENV_PATH}`. Her düzenlemeden önce yedek oluşturulacaktır"
+
+#: script:main
+msgid "\tSoonSECRET_KEY=\"your_django_secret_key\""
+msgstr "\tSoonSECRET_KEY=\"your_django_secret_key\""
+
+#: script:main
+msgid "\tSoonMachine=\"controller.domain.ext\" # If available"
+msgstr "\tSoonMachine=\"controller.domain.ext\" # Varsa"
+
+#: script:main
+msgid "\tSoonADAdmin=\"your_administrator_username\""
+msgstr "\tSoonADAdmin=\"your_administrator_username\""
+
+#: script:main
+msgid "\tSoonADPassword=\"your_administrator_password\""
+msgstr "\tSoonADPassword=\"your_administrator_password\""
+
+#: script:main
+msgid "\tSoonKeys=\"/opt/soon/keys\""
+msgstr "\tSoonKeys=\"/opt/soon/keys\""
+
+#: script:main
+msgid "2.1) Create Certification and Certifier GPO"
+msgstr "2.1) Sertifika ve Sertifikalandırıcı (Certifier) GPO oluşturma"
+
+#: script:main
+msgid "Will create a certification via openssl."
+msgstr "OpenSSL kullanarak bir sertifika oluşturulacak."
+
+#: script:main
+msgid "Certification would ve used for logon/logoff scripts signing."
+msgstr "Sertifika, oturum açma/kapama betiklerinin imzalanmasında kullanılacaktır."
+
+#: script:main
+msgid "Allow creation of the certification? If you want to do it yourself type `n/no`"
+msgstr "Sertifika oluşturulmasına izin verilsin mi? Kendi başınıza yapmak isterseniz `n/no` yazın"
+
+#: script:main
+msgid "3) Configure Django server"
+msgstr "3) Django sunucusunu yapılandırma"
+
+#: script:main
+msgid "Will `makemigrations`, `migrate` and `createsuperuser`"
+msgstr "`makemigrations`, `migrate` ve `createsuperuser` çalıştırılacak"
+
+#: script:main
+msgid "You can use Super User created here to login to django admin panel http://[THIS-MACHINES-IP]:8006/admin"
+msgstr "Burada oluşturulan Süper Kullanıcıyı Django yönetim paneline giriş için kullanabilirsiniz: http://[THIS-MACHINES-IP]:8006/admin"
+
+#: script:main
+msgid "Create user's and copy their apikeys."
+msgstr "Kullanıcı oluşturun ve API anahtarlarını kopyalayın."
+
+#: script:main
+msgid "Allow configuration? If you want to configure it yourself type `n/no`"
+msgstr "Yapılandırmaya izin verilsin mi? Kendi başınıza yapılandırmak isterseniz `n/no` yazın"
+
+#: script:main
+msgid "4) Soon Service"
+msgstr "4) Soon Servisi"
+
+#: script:main
+msgid "Will enable and start the soon's service"
+msgstr "Soon servisi etkinleştirilecek ve başlatılacaktır"
+
+#: script:main
+msgid "Allow to enable and start soon service? If you want to do it yourself type `n/no`"
+msgstr "Soon servisini etkinleştirip başlatmaya izin verilsin mi? Kendi başınıza yapmak isterseniz `n/no` yazın"
